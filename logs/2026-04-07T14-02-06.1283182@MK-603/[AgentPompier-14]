@@ -1,0 +1,21 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentPompier-14] started on 2026-04-07T14:02:47.9307341 --
+--------------------------------------------------------------------------
+
+WARNING : [Pompier_02] MISSION ACCEPTÉE → Priorité: URGENTE
+INFO : [Pompier_02] Arrivé en forêt. Début opérations.
+INFO : [Pompier_02] Extinction:  12% | Eau= 457L | DangerRés= 77
+INFO : [Pompier_02] Extinction:  24% | Eau= 405L | DangerRés= 66
+INFO : [Pompier_02] Extinction:  40% | Eau= 337L | DangerRés= 52
+INFO : [Pompier_02] Extinction:  60% | Eau= 286L | DangerRés= 35
+INFO : [Pompier_02] Extinction:  76% | Eau= 245L | DangerRés= 21
+INFO : [Pompier_02] Extinction:  89% | Eau= 191L | DangerRés=  9
+INFO : [Pompier_02] Extinction: 100% | Eau= 146L | DangerRés=  0
+WARNING : [Pompier_02] ✓ MISSION ACCOMPLIE — Feu maîtrisé !
+INFO : [Pompier_02] De retour en attente. Prêt pour nouvelle mission.
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentPompier-14] closed on  2026-04-07T14:04:22.4864045 --
+--------------------------------------------------------------------------
+

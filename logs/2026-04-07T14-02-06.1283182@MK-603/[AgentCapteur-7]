@@ -1,0 +1,42 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentCapteur-7] started on 2026-04-07T14:02:47.9222192 --
+--------------------------------------------------------------------------
+
+INFO : [Zone_Sud] C15 | T=28.7C | H=60.9% | Danger=16/100
+INFO : [Zone_Sud] C16 | T=29.3C | H=61.3% | Danger=16/100
+INFO : [Zone_Sud] C17 | T=30.5C | H=61.0% | Danger=17/100
+INFO : [Zone_Sud] C18 | T=29.7C | H=60.2% | Danger=17/100
+INFO : [Zone_Sud] C19 | T=30.1C | H=60.3% | Danger=17/100
+INFO : [Zone_Sud] C20 | T=30.2C | H=60.6% | Danger=17/100
+INFO : [Zone_Sud] C21 | T=30.4C | H=60.6% | Danger=18/100
+INFO : [Zone_Sud] C22 | T=30.5C | H=59.7% | Danger=18/100
+INFO : [Zone_Sud] C23 | T=30.8C | H=59.4% | Danger=19/100
+INFO : [Zone_Sud] C24 | T=31.1C | H=58.8% | Danger=19/100
+INFO : [Zone_Sud] C25 | T=30.1C | H=58.5% | Danger=18/100
+INFO : [Zone_Sud] C26 | T=31.1C | H=58.3% | Danger=19/100
+INFO : [Zone_Sud] C27 | T=30.2C | H=58.7% | Danger=18/100
+INFO : [Zone_Sud] C28 | T=31.1C | H=57.0% | Danger=20/100
+INFO : [Zone_Sud] C29 | T=30.6C | H=59.1% | Danger=18/100
+INFO : [Zone_Sud] C30 | T=31.3C | H=58.5% | Danger=19/100
+INFO : [Zone_Sud] C31 | T=31.2C | H=58.5% | Danger=19/100
+INFO : [Zone_Sud] C32 | T=30.8C | H=57.6% | Danger=19/100
+INFO : [Zone_Sud] C33 | T=29.8C | H=56.9% | Danger=19/100
+INFO : [Zone_Sud] C34 | T=29.8C | H=55.9% | Danger=19/100
+INFO : [Zone_Sud] C35 | T=30.2C | H=54.4% | Danger=20/100
+INFO : [Zone_Sud] C36 | T=31.2C | H=55.2% | Danger=21/100
+WARNING : [Zone_Sud] *** DÉPART DE FEU (intensité initiale: 5%) ***
+INFO : [Zone_Sud] C37 | T=31.1C | H=53.0% | Danger=22/100 🔥(15%)
+INFO : [Zone_Sud] C38 | T=34.0C | H=51.0% | Danger=25/100 🔥(23%)
+INFO : [Zone_Sud] C39 | T=37.6C | H=49.1% | Danger=29/100 🔥(32%)
+INFO : [Zone_Sud] C40 | T=41.8C | H=45.6% | Danger=34/100 🔥(40%)
+INFO : [Zone_Sud] C41 | T=46.5C | H=42.6% | Danger=40/100 🔥(49%)
+INFO : [Zone_Sud] C42 | T=51.5C | H=39.6% | Danger=46/100 🔥(57%)
+INFO : [Zone_Sud] C43 | T=57.8C | H=36.1% | Danger=53/100 🔥(67%)
+INFO : [Zone_Sud] C44 | T=63.1C | H=32.1% | Danger=59/100 🔥(76%)
+INFO : [Zone_Sud] C45 | T=70.2C | H=27.9% | Danger=67/100 🔥(86%)
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentCapteur-7] closed on  2026-04-07T14:04:22.3038375 --
+--------------------------------------------------------------------------
+

@@ -457,22 +457,35 @@ public class SimulationGUI extends Agent {
             }
         }
 
-        private void dessinerFlammes(Graphics2D g2, int x, int y, int w, int h, int danger) {
-            int nb = Math.max(4, danger / 12);
-            Random rnd = new Random(danger + flammePhase / 4);
-            for (int i = 0; i < nb; i++) {
-                int fx = x + 16 + rnd.nextInt(Math.max(1, w - 32));
-                int fy = y + 20 + rnd.nextInt(Math.max(1, h - 50));
-                int taille = 8 + (flammePhase + i * 3) % 8 + danger / 18;
-                int[] px = {fx, fx - taille/2, fx + taille/2};
-                int[] py = {fy - taille*2, fy, fy};
-                float alpha = 0.65f + 0.35f * (float) Math.sin(flammePhase * 0.4 + i);
-                g2.setColor(new Color(1f, 0.25f + 0.3f*(float)Math.sin(flammePhase*0.3f+i), 0f, alpha));
-                g2.fillPolygon(px, py, 3);
-                g2.setColor(new Color(255, 200, 0, 50));
-                g2.fillOval(fx - taille, fy - taille, taille * 2, taille * 2);
-            }
-        }
+ private void dessinerFlammes(Graphics2D g2, int x, int y, int w, int h, int danger) {
+    int nb = Math.max(4, danger / 12);
+    Random rnd = new Random(danger + flammePhase / 4);
+    for (int i = 0; i < nb; i++) {
+        int fx = x + 16 + rnd.nextInt(Math.max(1, w - 32));
+        int fy = y + 20 + rnd.nextInt(Math.max(1, h - 50));
+        int taille = 8 + (flammePhase + i * 3) % 8 + danger / 18;
+        int[] px = {fx, fx - taille/2, fx + taille/2};
+        int[] py = {fy - taille*2, fy, fy};
+
+        // ✅ FIX : clamp alpha entre 0.0f et 1.0f
+        float alpha = Math.max(0f, Math.min(1f,
+            0.65f + 0.35f * (float) Math.sin(flammePhase * 0.4 + i)
+        ));
+
+        // ✅ FIX : clamp green entre 0.0f et 1.0f
+        float green = Math.max(0f, Math.min(1f,
+            0.25f + 0.3f * (float) Math.sin(flammePhase * 0.3f + i)
+        ));
+
+        g2.setColor(new Color(1f, green, 0f, alpha));
+        g2.fillPolygon(px, py, 3);
+
+        // ✅ FIX : alpha de 50/255 ≈ 0.196f — ok, mais on sécurise aussi
+        g2.setColor(new Color(255, 200, 0, 50));
+        g2.fillOval(fx - taille, fy - taille, taille * 2, taille * 2);
+    }
+}
+
 
         private void dessinerAgentsSurZone(Graphics2D g2, int cx, int cy) {
             List<String> surZone;

@@ -1,0 +1,41 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentCapteur-8] started on 2026-04-07T14:02:47.9242158 --
+--------------------------------------------------------------------------
+
+INFO : [Zone_Est] C15 | T=21.6C | H=55.1% | Danger=12/100
+INFO : [Zone_Est] C16 | T=22.2C | H=55.7% | Danger=13/100
+INFO : [Zone_Est] C17 | T=21.1C | H=55.8% | Danger=12/100
+INFO : [Zone_Est] C18 | T=20.9C | H=55.7% | Danger=12/100
+INFO : [Zone_Est] C19 | T=21.1C | H=55.5% | Danger=12/100
+INFO : [Zone_Est] C20 | T=22.5C | H=56.0% | Danger=13/100
+INFO : [Zone_Est] C21 | T=21.7C | H=56.6% | Danger=12/100
+INFO : [Zone_Est] C22 | T=22.8C | H=56.5% | Danger=13/100
+INFO : [Zone_Est] C23 | T=22.1C | H=57.2% | Danger=12/100
+INFO : [Zone_Est] C24 | T=23.6C | H=56.1% | Danger=14/100
+INFO : [Zone_Est] C25 | T=23.3C | H=55.2% | Danger=14/100
+INFO : [Zone_Est] C26 | T=24.0C | H=55.8% | Danger=14/100
+INFO : [Zone_Est] C27 | T=24.7C | H=56.6% | Danger=14/100
+INFO : [Zone_Est] C28 | T=25.0C | H=54.8% | Danger=16/100
+INFO : [Zone_Est] C29 | T=24.3C | H=54.9% | Danger=15/100
+INFO : [Zone_Est] C30 | T=25.6C | H=53.9% | Danger=17/100
+INFO : [Zone_Est] C31 | T=26.2C | H=52.7% | Danger=18/100
+INFO : [Zone_Est] C32 | T=26.4C | H=52.3% | Danger=18/100
+INFO : [Zone_Est] C33 | T=25.9C | H=53.6% | Danger=17/100
+INFO : [Zone_Est] C34 | T=26.4C | H=53.0% | Danger=18/100
+INFO : [Zone_Est] C35 | T=26.1C | H=52.5% | Danger=18/100
+INFO : [Zone_Est] C36 | T=24.4C | H=52.0% | Danger=16/100
+INFO : [Zone_Est] C37 | T=24.4C | H=51.2% | Danger=17/100
+INFO : [Zone_Est] C38 | T=24.5C | H=50.2% | Danger=17/100
+INFO : [Zone_Est] C39 | T=24.4C | H=49.4% | Danger=18/100
+INFO : [Zone_Est] C40 | T=24.1C | H=48.8% | Danger=18/100
+INFO : [Zone_Est] C41 | T=23.4C | H=47.9% | Danger=17/100
+INFO : [Zone_Est] C42 | T=23.0C | H=47.2% | Danger=17/100
+INFO : [Zone_Est] C43 | T=23.7C | H=46.9% | Danger=18/100
+INFO : [Zone_Est] C44 | T=22.6C | H=48.3% | Danger=17/100
+INFO : [Zone_Est] C45 | T=23.8C | H=46.2% | Danger=19/100
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentCapteur-8] closed on  2026-04-07T14:04:22.3270064 --
+--------------------------------------------------------------------------
+

@@ -1,0 +1,27 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentChefOperations-4] started on 2026-04-07T14:02:47.9182096 --
+--------------------------------------------------------------------------
+
+INFO : RAPPORT : Pompier_01 | 0% | EN_ROUTE
+INFO : RAPPORT : Pompier_02 | 0% | EN_ROUTE
+INFO : RAPPORT : Pompier_01 | 0% | SUR_ZONE
+INFO : RAPPORT : Pompier_02 | 0% | SUR_ZONE
+INFO : RAPPORT : Pompier_01 | 14% | EXTINCTION
+INFO : RAPPORT : Pompier_02 | 12% | EXTINCTION
+INFO : RAPPORT : Pompier_01 | 34% | EXTINCTION
+INFO : RAPPORT : Pompier_02 | 24% | EXTINCTION
+INFO : RAPPORT : Pompier_01 | 54% | EXTINCTION
+INFO : RAPPORT : Pompier_02 | 40% | EXTINCTION
+INFO : RAPPORT : Pompier_01 | 75% | EXTINCTION
+INFO : RAPPORT : Pompier_02 | 60% | EXTINCTION
+INFO : RAPPORT : Pompier_01 | 90% | EXTINCTION
+INFO : RAPPORT : Pompier_02 | 76% | EXTINCTION
+INFO : RAPPORT : Pompier_01 | 100% | TERMINE
+INFO : RAPPORT : Pompier_02 | 89% | EXTINCTION
+INFO : RAPPORT : Pompier_02 | 100% | TERMINE
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentChefOperations-4] closed on  2026-04-07T14:04:22.2682716 --
+--------------------------------------------------------------------------
+

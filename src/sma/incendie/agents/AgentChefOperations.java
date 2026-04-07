@@ -32,15 +32,17 @@ public class AgentChefOperations extends Agent {
         journaliser("ChefOpérations opérationnel.");
     }
 
-    @Override
-    protected void live() {
-        getLogger().info("ChefOpérations : En veille...");
-        while (true) {
-            try { Thread.sleep(4000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-            Message msg = nextMessage();
-            if (msg != null) traiterMessage(msg);
+@Override
+protected void live() {
+    getLogger().info("ChefOpérations : En veille...");
+    while (true) {
+        try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        Message msg;
+        while ((msg = nextMessage()) != null) {  // ← boucle complète
+            traiterMessage(msg);
         }
     }
+}
 
     private void traiterMessage(Message msg) {
         nbRapports++;

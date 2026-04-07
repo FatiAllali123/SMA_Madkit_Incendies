@@ -33,13 +33,13 @@ public final class AGRConstants {
     public static final String ROLE_OBSERVATEUR   = "Observateur_Terrain";
 
     // Niveaux de danger (0-100)
-    public static final int SEUIL_SURVEILLANCE    = 35;  // capteur envoie alerte
-    public static final int SEUIL_ORANGE          = 50;  // 2 pompiers + 1 véhicule
-    public static final int SEUIL_ROUGE           = 70;  // 4 pompiers + 2 véhicules
-    public static final int SEUIL_CRITIQUE        = 85;  // tout le monde + hélicos
-
+public static final int SEUIL_SURVEILLANCE = 25;  // capteur alerte (plus tôt)
+public static final int SEUIL_ORANGE       = 35;  // niveau ORANGE
+public static final int SEUIL_ROUGE        = 50;  // niveau ROUGE  
+public static final int SEUIL_CRITIQUE     = 70;  // niveau CRITIQUE
+// EXTREME reste implicite >= 85
     // Intervalles (ms)
-    public static final long CAPTEUR_CYCLE_MS     = 3000;
+    public static final long CAPTEUR_CYCLE_MS     = 2000;
     public static final long DRONE_CYCLE_MS       = 4000;
     public static final long METEO_CYCLE_MS       = 5000;
     public static final long DEPLACEMENT_MS       = 4000;

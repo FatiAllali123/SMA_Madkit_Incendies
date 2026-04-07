@@ -1,0 +1,42 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentCapteur-9] started on 2026-04-07T14:02:47.9252154 --
+--------------------------------------------------------------------------
+
+INFO : [Zone_Ouest] C15 | T=26.2C | H=55.4% | Danger=16/100
+WARNING : [Zone_Ouest] *** DÉPART DE FEU (intensité initiale: 5%) ***
+INFO : [Zone_Ouest] C16 | T=28.3C | H=53.3% | Danger=19/100 🔥(14%)
+INFO : [Zone_Ouest] C17 | T=30.5C | H=51.9% | Danger=22/100 🔥(22%)
+INFO : [Zone_Ouest] C18 | T=35.6C | H=49.1% | Danger=27/100 🔥(31%)
+INFO : [Zone_Ouest] C19 | T=40.5C | H=46.1% | Danger=33/100 🔥(40%)
+INFO : [Zone_Ouest] C20 | T=45.0C | H=42.9% | Danger=39/100 🔥(48%)
+INFO : [Zone_Ouest] C21 | T=50.3C | H=39.4% | Danger=45/100 🔥(57%)
+INFO : [Zone_Ouest] C22 | T=56.6C | H=36.4% | Danger=52/100 🔥(67%)
+INFO : [Zone_Ouest] C23 | T=63.6C | H=32.0% | Danger=60/100 🔥(77%)
+INFO : [Zone_Ouest] C24 | T=69.6C | H=28.2% | Danger=67/100 🔥(85%)
+INFO : [Zone_Ouest] C25 | T=75.6C | H=23.9% | Danger=74/100 🔥(94%)
+INFO : [Zone_Ouest] C26 | T=81.3C | H=20.7% | Danger=80/100 🔥(100%)
+INFO : [Zone_Ouest] C27 | T=86.1C | H=17.6% | Danger=86/100 🔥(100%)
+INFO : [Zone_Ouest] C28 | T=88.5C | H=15.1% | Danger=89/100 🔥(100%)
+INFO : [Zone_Ouest] C29 | T=90.2C | H=13.0% | Danger=92/100 🔥(100%)
+INFO : [Zone_Ouest] C30 | T=91.7C | H=11.5% | Danger=94/100 🔥(100%)
+INFO : [Zone_Ouest] C31 | T=92.3C | H=10.1% | Danger=95/100 🔥(100%)
+INFO : [Zone_Ouest] C32 | T=93.1C | H=9.2% | Danger=96/100 🔥(100%)
+INFO : [Zone_Ouest] C33 | T=93.5C | H=8.5% | Danger=97/100 🔥(100%)
+INFO : [Zone_Ouest] C34 | T=94.2C | H=7.4% | Danger=98/100 🔥(100%)
+INFO : [Zone_Ouest] C35 | T=94.2C | H=7.1% | Danger=98/100 🔥(100%)
+INFO : [Zone_Ouest] C36 | T=94.4C | H=6.8% | Danger=98/100 🔥(100%)
+INFO : [Zone_Ouest] C37 | T=94.2C | H=6.1% | Danger=98/100 🔥(100%)
+INFO : [Zone_Ouest] C38 | T=94.7C | H=6.5% | Danger=99/100 🔥(100%)
+INFO : [Zone_Ouest] C39 | T=95.0C | H=6.0% | Danger=99/100 🔥(100%)
+INFO : [Zone_Ouest] C40 | T=95.0C | H=5.3% | Danger=99/100 🔥(100%)
+INFO : [Zone_Ouest] C41 | T=95.3C | H=5.9% | Danger=99/100 🔥(100%)
+INFO : [Zone_Ouest] C42 | T=95.2C | H=5.2% | Danger=99/100 🔥(100%)
+INFO : [Zone_Ouest] C43 | T=94.5C | H=5.7% | Danger=99/100 🔥(100%)
+INFO : [Zone_Ouest] C44 | T=94.8C | H=5.7% | Danger=99/100 🔥(100%)
+INFO : [Zone_Ouest] C45 | T=95.4C | H=5.5% | Danger=99/100 🔥(100%)
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentCapteur-9] closed on  2026-04-07T14:04:22.3591426 --
+--------------------------------------------------------------------------
+

@@ -1,0 +1,20 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentPompier-16] started on 2026-04-07T14:02:47.9327346 --
+--------------------------------------------------------------------------
+
+WARNING : [Pompier_04] MISSION ACCEPTÉE → Priorité: HAUTE
+INFO : [Pompier_04] Arrivé en forêt. Début opérations.
+INFO : [Pompier_04] Extinction:  19% | Eau= 450L | DangerRés= 71
+INFO : [Pompier_04] Extinction:  38% | Eau= 405L | DangerRés= 54
+INFO : [Pompier_04] Extinction:  55% | Eau= 356L | DangerRés= 39
+INFO : [Pompier_04] Extinction:  76% | Eau= 301L | DangerRés= 21
+INFO : [Pompier_04] Extinction:  95% | Eau= 254L | DangerRés=  4
+INFO : [Pompier_04] Extinction: 100% | Eau= 186L | DangerRés=  0
+WARNING : [Pompier_04] ✓ MISSION ACCOMPLIE — Feu maîtrisé !
+INFO : [Pompier_04] De retour en attente. Prêt pour nouvelle mission.
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentPompier-16] closed on  2026-04-07T14:04:22.4934221 --
+--------------------------------------------------------------------------
+

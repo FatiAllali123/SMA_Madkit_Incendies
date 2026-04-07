@@ -1,0 +1,32 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentHelicoptere-21] started on 2026-04-07T14:02:47.9402538 --
+--------------------------------------------------------------------------
+
+WARNING : [Helico_01] 🚁 DÉPART ARROSAGE AÉRIEN !
+WARNING : [Helico_01] 💧 Largage #1 : 1601L | Réserve=1399L
+WARNING : [Helico_01] 💧 Largage #2 : 1349L | Réserve=50L
+INFO : [Helico_01] Retour lac pour rechargement...
+INFO : [Helico_01] Rechargé. De retour sur zone.
+WARNING : [Helico_01] 💧 Largage #3 : 1615L | Réserve=1385L
+WARNING : [Helico_01] 💧 Largage #4 : 1385L | Réserve=0L
+INFO : [Helico_01] Retour lac pour rechargement...
+INFO : [Helico_01] Rechargé. De retour sur zone.
+WARNING : [Helico_01] 💧 Largage #5 : 1439L | Réserve=1561L
+WARNING : [Helico_01] 💧 Largage #6 : 1561L | Réserve=0L
+INFO : [Helico_01] Retour lac pour rechargement...
+INFO : [Helico_01] Rechargé. De retour sur zone.
+WARNING : [Helico_01] 💧 Largage #7 : 1612L | Réserve=1388L
+WARNING : [Helico_01] 💧 Largage #8 : 1331L | Réserve=57L
+INFO : [Helico_01] Retour lac pour rechargement...
+INFO : [Helico_01] Rechargé. De retour sur zone.
+WARNING : [Helico_01] 💧 Largage #9 : 1570L | Réserve=1430L
+WARNING : [Helico_01] 💧 Largage #10 : 1430L | Réserve=0L
+INFO : [Helico_01] Retour lac pour rechargement...
+INFO : [Helico_01] Rechargé. De retour sur zone.
+WARNING : [Helico_01] 💧 Largage #11 : 1353L | Réserve=1647L
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentHelicoptere-21] closed on  2026-04-07T14:04:22.5250095 --
+--------------------------------------------------------------------------
+

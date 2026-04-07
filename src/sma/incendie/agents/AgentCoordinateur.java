@@ -1,6 +1,7 @@
 package sma.incendie.agents;
 
 import madkit.kernel.Agent;
+import madkit.kernel.AgentAddress;
 import madkit.kernel.Message;
 import sma.incendie.messages.*;
 import sma.incendie.utils.AGRConstants;
@@ -8,109 +9,82 @@ import sma.incendie.utils.AGRConstants;
 import java.util.*;
 
 /**
- * AgentCoordinateur — Cerveau du système (G1 + G2 + G3)
+ * AgentCoordinateur v4 — Cerveau du système
  *
- * Logique principale :
- * 1. Reçoit les alertes des capteurs → calcule un DANGER GLOBAL (max des capteurs)
- * 2. Selon le niveau de danger, détermine combien de ressources envoyer
- * 3. Envoie des renforts si la situation s'aggrave (dynamique)
- * 4. Retire des ressources si la situation s'améliore
- * 5. Déclare la fin d'alerte quand le danger global redescend à 0
- *
- * Niveaux :
- *   < 35  : NORMAL      → aucune intervention
- *   35-49 : ORANGE      → 2 pompiers + 1 véhicule
- *   50-69 : ROUGE       → 4 pompiers + 2 véhicules
- *   70-84 : CRITIQUE    → 5 pompiers + 3 véhicules
- *   ≥ 85  : EXTREME     → tout le monde + 2 hélicos
+ * CORRECTIONS v4 :
+ * 1. Déploiement PROGRESSIF : max 1 agent/cycle en ORANGE/ROUGE, max 2 en CRITIQUE/EXTREME
+ * 2. Véhicules rappelés automatiquement quand pompiersDeployes == 0 (via RETOUR_BASE)
+ * 3. Hélicos rappelés de même dès que le niveau redescend sous EXTREME
+ * 4. Montée de niveau graduelle : le coordinateur attend un 2e cycle de confirmation
+ *    avant d'escalader (évite les faux positifs d'un seul pic de capteur)
+ * 5. Logs enrichis pour visualiser clairement chaque décision de déploiement
  */
 public class AgentCoordinateur extends Agent {
 
-    // ── État du feu ───────────────────────────────────────────────────────────
-    // Map zone → dernier danger reçu
     private final Map<String, Integer> dangerParZone = new LinkedHashMap<>();
-    private int dangerGlobal   = 0;
-    private int dangerPrecedent = -1;   // pour détecter les changements de niveau
+    private int    dangerGlobal = 0;
+    private String niveauActuel = "NORMAL";
+    private String niveauCandidat = "NORMAL";   // niveau "en attente de confirmation"
+    private int    cyclesConfirmation = 0;       // nb de cycles consécutifs sur le même niveau candidat
+    private static final int CYCLES_CONFIRMATION = 2; // cycles nécessaires pour monter de niveau
 
-    // ── Niveau d'intervention actuel ──────────────────────────────────────────
-    private String niveauActuel = "NORMAL";  // NORMAL, ORANGE, ROUGE, CRITIQUE, EXTREME
+    // Agents occupés (par AgentAddress MadKit)
+    private final Set<AgentAddress> pompiersOccupes  = new HashSet<>();
+    private final Set<AgentAddress> vehiculesOccupes = new HashSet<>();
+    private final Set<AgentAddress> helicosOccupes   = new HashSet<>();
 
-    // ── Ressources déployées ──────────────────────────────────────────────────
     private int pompiersDeployes  = 0;
     private int vehiculesDeployes = 0;
     private int helicosDeployes   = 0;
 
-    // ── Totaux disponibles (taille du pool) ───────────────────────────────────
-    private static final int MAX_POMPIERS  = 5;
-    private static final int MAX_VEHICULES = 3;
-    private static final int MAX_HELICOS   = 2;
-
-    // ── Progression extinction rapportée ─────────────────────────────────────
     private final Map<String, RapportMessage> dernierRapport = new LinkedHashMap<>();
     private int progressionMoyenne = 0;
 
-    private int  cycle        = 0;
+    private int     cycle           = 0;
     private boolean incendieEnCours = false;
     private boolean finDeclaree     = false;
-
-    // Compteur de cycles à danger bas pour éviter fin prématurée
-    private int cyclesDangerBas = 0;
-    private static final int CYCLES_AVANT_FIN = 5;
+    private int     cyclesDangerBas = 0;
+    private static final int CYCLES_AVANT_FIN = 4;
 
     @Override
     protected void activate() {
-        getLogger().info("=== AgentCoordinateur : Activation ===");
-
+        getLogger().info("=== AgentCoordinateur v4 ===");
         createGroup(AGRConstants.COMMUNITY, AGRConstants.GROUP_SURVEILLANCE, false, null);
-        requestRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_SURVEILLANCE,
-            AGRConstants.ROLE_COORD_SURV, null);
-
+        requestRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_SURVEILLANCE, AGRConstants.ROLE_COORD_SURV, null);
         createGroup(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT, false, null);
-        requestRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT,
-            AGRConstants.ROLE_DECIDEUR, null);
-        requestRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT,
-            AGRConstants.ROLE_SUPERVISEUR, null);
-
+        requestRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT, AGRConstants.ROLE_DECIDEUR, null);
+        requestRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT, AGRConstants.ROLE_SUPERVISEUR, null);
         createGroup(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION, false, null);
-        requestRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
-            AGRConstants.ROLE_DECIDEUR, null);
-
-        getLogger().info("Coordinateur opérationnel.");
+        requestRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION, AGRConstants.ROLE_DECIDEUR, null);
     }
 
     @Override
     protected void live() {
-        getLogger().info("Coordinateur : en écoute...");
+        try { Thread.sleep(2500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        getLogger().info("Coordinateur actif.");
+
         while (true) {
             cycle++;
-
-            // Lire tous les messages disponibles
             Message msg;
-            while ((msg = nextMessage()) != null) {
-                traiterMessage(msg);
-            }
+            while ((msg = nextMessage()) != null) traiterMessage(msg);
 
-            // Calculer le danger global (max de toutes les zones)
-            dangerGlobal = dangerParZone.values().stream()
-                .mapToInt(i -> i).max().orElse(0);
-
-            // Évaluer et ajuster les ressources si changement significatif
+            dangerGlobal = dangerParZone.values().stream().mapToInt(i -> i).max().orElse(0);
             evaluerEtAjuster();
-
-            // Tableau de bord toutes les 5 secondes environ
+            diffuserDangerAuxPompiers();
             if (cycle % 3 == 0) afficherTableauBord();
 
-            try { Thread.sleep(2000); }
-            catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
     }
 
     @Override
     protected void end() {
-        getLogger().info("Coordinateur arrêté. " + cycle + " cycles.");
+        getLogger().info("Coordinateur arrêté. Cycles=" + cycle);
     }
 
-    // ── Traitement des messages ───────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // Traitement des messages entrants
+    // ─────────────────────────────────────────────────────────────────────────
 
     private void traiterMessage(Message msg) {
         if (msg instanceof AlerteMessage) {
@@ -121,164 +95,231 @@ public class AgentCoordinateur extends Agent {
             RapportMessage r = (RapportMessage) msg;
             dernierRapport.put(r.getAgentEmetteur(), r);
 
-            // Mettre à jour la progression moyenne
-            double somme = dernierRapport.values().stream()
-                .mapToInt(RapportMessage::getProgressionExtinction).average().orElse(0);
-            progressionMoyenne = (int) somme;
+            // Progression moyenne des pompiers actifs
+            OptionalDouble moy = dernierRapport.values().stream()
+                .filter(rr -> rr.getAgentEmetteur().contains("Pompier") && !rr.estTermine())
+                .mapToInt(RapportMessage::getProgressionExtinction).average();
+            if (moy.isPresent()) progressionMoyenne = (int) moy.getAsDouble();
 
-            // Si tous les agents ont terminé et le danger est bas → fin d'alerte
-            boolean tousTermines = dernierRapport.values().stream()
-                .allMatch(RapportMessage::estTermine);
-            if (tousTermines && dangerGlobal < AGRConstants.SEUIL_SURVEILLANCE
-                    && incendieEnCours && !finDeclaree) {
-                cyclesDangerBas++;
-            }
+            // Pompier terminé → libérer pour réaffectation
+            if (r.estTermine() && r.getAgentEmetteur().contains("Pompier")) {
+                AgentAddress adr = trouverParNom(pompiersOccupes, r.getAgentEmetteur());
+                if (adr != null) {
+                    pompiersOccupes.remove(adr);
+                    pompiersDeployes = Math.max(0, pompiersDeployes - 1);
+                    getLogger().info("✓ " + r.getAgentEmetteur() + " terminé et libéré → disponible.");
+                }
 
-            if (r.estTermine()) {
-                getLogger().info("✓ " + r.getAgentEmetteur()
-                    + " a terminé sa mission (progression=" + r.getProgressionExtinction() + "%)");
+                // ── CORRECTION : si plus aucun pompier actif, rappeler véhicules et hélicos ──
+                if (pompiersDeployes == 0 && (vehiculesDeployes > 0 || helicosDeployes > 0)) {
+                    getLogger().info(">> Tous les pompiers ont terminé → rappel véhicules & hélicos.");
+                    rappelerVehicules();
+                    rappelerHelicos();
+                }
             }
 
         } else if (msg instanceof MeteoMessage) {
-            // Intégrer le risque météo dans le danger global (bonus léger)
             MeteoMessage m = (MeteoMessage) msg;
-            if (m.getIndiceRisque() > 70) {
-                getLogger().warning("⚠ ALERTE MÉTÉO : Risque=" + m.getIndiceRisque()
-                    + "/100 | Vent=" + String.format("%.0f", m.getVitesseVent()) + "km/h "
-                    + m.getDirectionVent());
-            }
+            if (m.getIndiceRisque() > 65)
+                getLogger().warning("⚠ MÉTÉO Risque=" + m.getIndiceRisque()
+                    + " Vent=" + String.format("%.0f", m.getVitesseVent()) + "km/h " + m.getDirectionVent());
         }
     }
 
-    // ── Logique de décision ───────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // Logique de décision et déploiement progressif
+    // ─────────────────────────────────────────────────────────────────────────
 
-    private void evaluerEtAjuster() {
-        String nouveauNiveau = calculerNiveau(dangerGlobal);
+  private void evaluerEtAjuster() {
+    String niveauCalcule = calculerNiveau(dangerGlobal);
 
-        // Détecter changement de niveau
-        if (!nouveauNiveau.equals(niveauActuel)) {
-            getLogger().warning("=== CHANGEMENT DE NIVEAU : " + niveauActuel
-                + " → " + nouveauNiveau + " (Danger=" + dangerGlobal + "/100) ===");
-            niveauActuel = nouveauNiveau;
-            appliquerNiveau(nouveauNiveau);
-        }
+    // ── Confirmation de montée de niveau (évite réaction sur un seul pic) ──
+    String niveauEffectif;
+    int ordreActuel  = ordreNiveau(niveauActuel);
+    int ordreCalcule = ordreNiveau(niveauCalcule);
 
-        // Gestion de la fin d'incendie
-        if (incendieEnCours && dangerGlobal < AGRConstants.SEUIL_SURVEILLANCE) {
-            cyclesDangerBas++;
-            if (cyclesDangerBas >= CYCLES_AVANT_FIN && !finDeclaree) {
-                declarerFinAlerte();
-            }
+    if (ordreCalcule > ordreActuel) {
+        // Montée de niveau : on attend confirmation
+        if (niveauCalcule.equals(niveauCandidat)) {
+            cyclesConfirmation++;
         } else {
-            cyclesDangerBas = 0;
+            niveauCandidat     = niveauCalcule;
+            cyclesConfirmation = 1;
         }
+        niveauEffectif = (cyclesConfirmation >= CYCLES_CONFIRMATION) ? niveauCalcule : niveauActuel;
+    } else {
+        // Descente ou stabilité : immédiat
+        niveauCandidat     = niveauCalcule;
+        cyclesConfirmation = 0;
+        niveauEffectif     = niveauCalcule;
     }
 
-    private String calculerNiveau(int danger) {
-        if (danger >= AGRConstants.SEUIL_CRITIQUE)    return "EXTREME";
-        if (danger >= AGRConstants.SEUIL_ROUGE)       return "CRITIQUE";
-        if (danger >= AGRConstants.SEUIL_ORANGE)      return "ROUGE";
-        if (danger >= AGRConstants.SEUIL_SURVEILLANCE) return "ORANGE";
-        return "NORMAL";
+    if (!niveauEffectif.equals(niveauActuel)) {
+        getLogger().warning("=== NIVEAU : " + niveauActuel + " → " + niveauEffectif
+            + " (Danger=" + dangerGlobal + "/100) ===");
+        niveauActuel = niveauEffectif;
+    }
+
+
+     // ═══════════════════════════════════════════════════════════════════════
+    // ← NOUVEAU : Informer les capteurs de l'état de l'extinction
+    // ═══════════════════════════════════════════════════════════════════════
+    if (pompiersDeployes > 0) {
+        informerCapteursExtinction();
+    } else if (incendieEnCours && pompiersDeployes == 0) {
+        // Plus de pompiers mais feu encore là ? Problème - on rappelle
+        getLogger().warning("⚠ Feu actif mais aucun pompier déployé !");
+    }
+    
+    // Diffuser le danger aux pompiers
+    diffuserDangerAuxPompiers();
+
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ← NOUVEAU : Diffuser le danger actuel à tous les pompiers en mission
+    // ═══════════════════════════════════════════════════════════════════════
+    diffuserDangerAuxPompiers();
+
+    // ── Gestion fin d'alerte ──
+    if ("NORMAL".equals(niveauActuel)) {
+        if (incendieEnCours) {
+            cyclesDangerBas++;
+            if (cyclesDangerBas >= CYCLES_AVANT_FIN && !finDeclaree) declarerFinAlerte();
+        }
+        return;
+    }
+
+    cyclesDangerBas = 0;
+    incendieEnCours = true;
+
+    // ── Cibles selon niveau ──
+    int cibleP = 0, cibleV = 0, cibleH = 0;
+    switch (niveauActuel) {
+        case "ORANGE":   cibleP = 2; cibleV = 1; cibleH = 0; break;
+        case "ROUGE":    cibleP = 3; cibleV = 2; cibleH = 0; break;
+        case "CRITIQUE": cibleP = 5; cibleV = 3; cibleH = 0; break;
+        case "EXTREME":  cibleP = 5; cibleV = 3; cibleH = 2; break;
+    }
+
+    // ── Déploiement progressif — max agents par cycle selon urgence ──
+    boolean urgence = "EXTREME".equals(niveauActuel) || "CRITIQUE".equals(niveauActuel);
+    int maxParCycle = urgence ? 2 : 1;
+
+    String prio = urgence ? "URGENTE" : "HAUTE";
+
+    int mpq = Math.max(0, cibleP - pompiersDeployes);
+    int mvq = Math.max(0, cibleV - vehiculesDeployes);
+    int mhq = Math.max(0, cibleH - helicosDeployes);
+
+    // Pompiers : envoyer au plus maxParCycle ce cycle
+    if (mpq > 0) {
+        int aEnvoyer = Math.min(mpq, maxParCycle);
+        int n = envoyerCibles(aEnvoyer, AGRConstants.ROLE_POMPIER, pompiersOccupes,
+            new OrdreMessage("EXTINCTION", prio, "Intervention feu actif en forêt."));
+        pompiersDeployes += n;
+        if (n > 0) getLogger().warning(">>> +" + n + " pompier(s) envoyé(s) [cible=" + cibleP
+            + ", actifs=" + pompiersDeployes + "] (manque encore " + Math.max(0, mpq - n) + ")");
+    }
+
+    // Véhicules : envoyer au plus 1 par cycle
+    if (mvq > 0) {
+        int aEnvoyer = Math.min(mvq, 1);
+        int n = envoyerCibles(aEnvoyer, AGRConstants.ROLE_CONDUCTEUR, vehiculesOccupes,
+            new OrdreMessage("SUPPORT_TRANSPORT", "HAUTE", "Transport et ravitaillement eau."));
+        vehiculesDeployes += n;
+        if (n > 0) getLogger().warning(">>> +" + n + " véhicule(s) envoyé(s) [cible=" + cibleV
+            + ", actifs=" + vehiculesDeployes + "]");
+    }
+
+    // Hélicos : uniquement en EXTREME, 1 par cycle max
+    if (mhq > 0) {
+        int n = envoyerCibles(1, AGRConstants.ROLE_RENFORT, helicosOccupes,
+            new OrdreMessage("ARROSAGE_AERIEN", "URGENTE", "Arrosage aérien immédiat."));
+        helicosDeployes += n;
+        if (n > 0) getLogger().warning(">>> +" + n + " hélico(s) envoyé(s) [cible=" + cibleH
+            + ", actifs=" + helicosDeployes + "]");
+    }
+
+    // Si niveau redescend sous EXTREME, rappeler les hélicos
+    if (!"EXTREME".equals(niveauActuel) && helicosDeployes > 0) {
+        getLogger().info(">> Niveau < EXTREME → rappel hélicoptères.");
+        rappelerHelicos();
+    }
+}
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Rappel des ressources
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Rappelle tous les véhicules sur zone.
+     * Leur envoie RETOUR_BASE (pas FIN_ALERTE, ils restent actifs pour future mission).
+     */
+    private void rappelerVehicules() {
+        if (vehiculesOccupes.isEmpty()) return;
+        SimpleMessage retour = new SimpleMessage(SimpleMessage.RETOUR_BASE);
+        for (AgentAddress addr : new HashSet<>(vehiculesOccupes)) {
+            sendMessage(addr, retour);
+        }
+        getLogger().info(">> " + vehiculesDeployes + " véhicule(s) rappelé(s) au dépôt.");
+        vehiculesOccupes.clear();
+        vehiculesDeployes = 0;
     }
 
     /**
-     * Applique le niveau d'intervention :
-     * envoie des renforts si on monte, rappelle des agents si on descend.
+     * Rappelle tous les hélicoptères.
+     * Leur envoie RETOUR_BASE (ils restent actifs pour nouvelle mission EXTREME).
      */
-    private void appliquerNiveau(String niveau) {
-        int ciblePompiers  = 0;
-        int cibleVehicules = 0;
-        int cibleHelicos   = 0;
-
-        switch (niveau) {
-            case "NORMAL":
-                // Aucune intervention
-                break;
-            case "ORANGE":
-                ciblePompiers  = 2;
-                cibleVehicules = 1;
-                break;
-            case "ROUGE":
-                ciblePompiers  = 4;
-                cibleVehicules = 2;
-                break;
-            case "CRITIQUE":
-                ciblePompiers  = MAX_POMPIERS;   // 5
-                cibleVehicules = MAX_VEHICULES;  // 3
-                break;
-            case "EXTREME":
-                ciblePompiers  = MAX_POMPIERS;
-                cibleVehicules = MAX_VEHICULES;
-                cibleHelicos   = MAX_HELICOS;    // 2
-                break;
+    private void rappelerHelicos() {
+        if (helicosOccupes.isEmpty()) return;
+        SimpleMessage retour = new SimpleMessage(SimpleMessage.RETOUR_BASE);
+        for (AgentAddress addr : new HashSet<>(helicosOccupes)) {
+            sendMessage(addr, retour);
         }
-
-        if ("NORMAL".equals(niveau)) {
-            return; // La fin sera gérée par declarerFinAlerte()
-        }
-
-        incendieEnCours = true;
-
-        // Envoyer renforts pompiers si nécessaire
-        int pompiersSup = ciblePompiers - pompiersDeployes;
-        if (pompiersSup > 0) {
-            getLogger().warning(">>> DÉPLOIEMENT : +" + pompiersSup + " pompier(s) → Total=" + ciblePompiers);
-            OrdreMessage ordre = new OrdreMessage(
-                "EXTINCTION",
-                niveau.equals("EXTREME") || niveau.equals("CRITIQUE") ? "URGENTE" : "HAUTE",
-                "Extinction incendie. " + pompiersSup + " équipe(s) supplémentaire(s)."
-            );
-            // Broadcast : les pompiers libres prendront l'ordre (jusqu'à pompiersSup)
-            broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
-                AGRConstants.ROLE_POMPIER, ordre, AGRConstants.ROLE_DECIDEUR);
-            pompiersDeployes = ciblePompiers;
-
-            // Notifier les capteurs que l'extinction est en cours
-            broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_SURVEILLANCE,
-                AGRConstants.ROLE_CAPTEUR, new SimpleMessage("EXTINCTION_EN_COURS"),
-                AGRConstants.ROLE_COORD_SURV);
-        }
-
-        // Envoyer renforts véhicules si nécessaire
-        int vehiculesSup = cibleVehicules - vehiculesDeployes;
-        if (vehiculesSup > 0) {
-            getLogger().warning(">>> DÉPLOIEMENT : +" + vehiculesSup + " véhicule(s) → Total=" + cibleVehicules);
-            OrdreMessage ordre = new OrdreMessage(
-                "SUPPORT_TRANSPORT",
-                "HAUTE",
-                "Transport équipes + ravitaillement eau. " + vehiculesSup + " camion(s)."
-            );
-            broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
-                AGRConstants.ROLE_CONDUCTEUR, ordre, AGRConstants.ROLE_DECIDEUR);
-            vehiculesDeployes = cibleVehicules;
-        }
-
-        // Envoyer hélicos si niveau EXTREME
-        int helicosSup = cibleHelicos - helicosDeployes;
-        if (helicosSup > 0) {
-            getLogger().warning(">>> DÉPLOIEMENT AÉRIEN : +" + helicosSup + " hélico(s)");
-            OrdreMessage ordre = new OrdreMessage(
-                "ARROSAGE_AERIEN",
-                "URGENTE",
-                "Arrosage aérien immédiat. Situation extrême."
-            );
-            broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
-                AGRConstants.ROLE_RENFORT, ordre, AGRConstants.ROLE_DECIDEUR);
-            helicosDeployes = cibleHelicos;
-        }
+        getLogger().info(">> " + helicosDeployes + " hélico(s) rappelé(s) à la base.");
+        helicosOccupes.clear();
+        helicosDeployes = 0;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Envoi ciblé
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Envoie le message à exactement N agents libres du rôle donné.
+     * Retourne le nombre réellement envoyés.
+     */
+    private int envoyerCibles(int n, String role, Set<AgentAddress> occupes, OrdreMessage template) {
+        List<AgentAddress> liste = getAgentsWithRole(
+            AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION, role);
+        if (liste == null || liste.isEmpty()) return 0;
+
+        int envoyes = 0;
+        for (AgentAddress addr : liste) {
+            if (envoyes >= n) break;
+            if (occupes.contains(addr)) continue;
+            OrdreMessage ordre = new OrdreMessage(template.getTypeAction(),
+                template.getPriorite(), template.getInstructions());
+            sendMessage(addr, ordre);
+            occupes.add(addr);
+            envoyes++;
+        }
+        return envoyes;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Fin d'alerte
+    // ─────────────────────────────────────────────────────────────────────────
 
     private void declarerFinAlerte() {
         if (finDeclaree) return;
         finDeclaree = true;
-
-        getLogger().info("╔══════════════════════════════════════════╗");
-        getLogger().info("║   INCENDIE MAÎTRISÉ — FIN D'ALERTE      ║");
-        getLogger().info("║   Danger final : " + dangerGlobal + "/100              ║");
-        getLogger().info("╚══════════════════════════════════════════╝");
-
-        // Notifier tous les agents G3 de rentrer
+        getLogger().info("╔════════════════════════════════════╗");
+        getLogger().info("║  INCENDIE MAÎTRISÉ — FIN D'ALERTE ║");
+        getLogger().info("╚════════════════════════════════════╝");
+         // ← NOUVEAU : Informer les capteurs avant d'arrêter
+    informerCapteursFinExtinction();
+    
         SimpleMessage fin = new SimpleMessage(SimpleMessage.FIN_ALERTE);
         broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
             AGRConstants.ROLE_POMPIER, fin, AGRConstants.ROLE_DECIDEUR);
@@ -286,45 +327,145 @@ public class AgentCoordinateur extends Agent {
             AGRConstants.ROLE_CONDUCTEUR, fin, AGRConstants.ROLE_DECIDEUR);
         broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
             AGRConstants.ROLE_RENFORT, fin, AGRConstants.ROLE_DECIDEUR);
-
-        // Notifier les capteurs : incendie maîtrisé
         broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_SURVEILLANCE,
-            AGRConstants.ROLE_CAPTEUR, new SimpleMessage("INCENDIE_MAITRISE"),
-            AGRConstants.ROLE_COORD_SURV);
-
-        // Rapport final au chef des opérations
-        OrdreMessage rapport = new OrdreMessage(
-            "RAPPORT_FINAL", "NORMALE",
-            "Incendie éteint. Pompiers=" + pompiersDeployes
-            + " | Véhicules=" + vehiculesDeployes
-            + " | Hélicos=" + helicosDeployes
-        );
+            AGRConstants.ROLE_CAPTEUR, new SimpleMessage("INCENDIE_MAITRISE"), AGRConstants.ROLE_COORD_SURV);
         broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT,
-            AGRConstants.ROLE_SUPERVISEUR, rapport, AGRConstants.ROLE_DECIDEUR);
+            AGRConstants.ROLE_SUPERVISEUR,
+            new OrdreMessage("RAPPORT_FINAL", "NORMALE",
+                "P=" + pompiersDeployes + " V=" + vehiculesDeployes + " H=" + helicosDeployes),
+            AGRConstants.ROLE_DECIDEUR);
 
-        // Reset état
-        pompiersDeployes  = 0;
-        vehiculesDeployes = 0;
-        helicosDeployes   = 0;
-        niveauActuel      = "NORMAL";
-        incendieEnCours   = false;
-        dangerParZone.clear();
-        dernierRapport.clear();
+        pompiersOccupes.clear(); vehiculesOccupes.clear(); helicosOccupes.clear();
+        pompiersDeployes = 0; vehiculesDeployes = 0; helicosDeployes = 0;
+        niveauActuel = "NORMAL"; incendieEnCours = false;
+        dangerParZone.clear(); dernierRapport.clear();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Utilitaires
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private String calculerNiveau(int d) {
+        if (d >= 85)                              return "EXTREME";
+        if (d >= AGRConstants.SEUIL_CRITIQUE)     return "CRITIQUE";
+        if (d >= AGRConstants.SEUIL_ROUGE)        return "ROUGE";
+        if (d >= AGRConstants.SEUIL_ORANGE)       return "ORANGE";
+        return "NORMAL";
+    }
+
+    /** Retourne un entier pour comparer les niveaux entre eux. */
+    private int ordreNiveau(String niveau) {
+        switch (niveau) {
+            case "EXTREME":  return 4;
+            case "CRITIQUE": return 3;
+            case "ROUGE":    return 2;
+            case "ORANGE":   return 1;
+            default:         return 0;
+        }
+    }
+
+    private AgentAddress trouverParNom(Set<AgentAddress> set, String nom) {
+        for (AgentAddress a : set) {
+            if (a.toString().contains(nom) || nom.contains(a.toString())) return a;
+        }
+        return null;
     }
 
     private void afficherTableauBord() {
         if (!incendieEnCours && dangerGlobal == 0) return;
-
         StringBuilder zones = new StringBuilder();
-        dangerParZone.forEach((z, d) -> zones.append(z).append("=").append(d).append(" "));
-
+        dangerParZone.forEach((z, d) -> {
+            if (d >= AGRConstants.SEUIL_SURVEILLANCE) zones.append(z).append("=").append(d).append(" ");
+        });
         getLogger().info(String.format(
-            "📊 [C%02d] Danger=%d/100 | Niveau=%s | Pompiers=%d | Véhicules=%d | Hélicos=%d | Progression=%d%%",
+            "📊 [C%02d] Danger=%d | %-8s | P=%d/%d V=%d H=%d | Prog=%d%%",
             cycle, dangerGlobal, niveauActuel,
-            pompiersDeployes, vehiculesDeployes, helicosDeployes, progressionMoyenne
-        ));
-        if (!dangerParZone.isEmpty()) {
-            getLogger().info("    Zones : " + zones);
+            pompiersDeployes, pompiersOccupes.size(),
+            vehiculesDeployes, helicosDeployes,
+            progressionMoyenne));
+        if (zones.length() > 0) getLogger().info("    Zones actives: " + zones);
+        if (!niveauCandidat.equals(niveauActuel))
+            getLogger().info("    (Niveau candidat: " + niveauCandidat
+                + " — confirmation " + cyclesConfirmation + "/" + CYCLES_CONFIRMATION + ")");
+    }
+
+
+
+    // Dans AgentCoordinateur.java - ajouter cette méthode
+
+/**
+ * Diffuse le danger actuel à tous les pompiers en mission
+ * pour qu'ils sachent si le feu est toujours actif.
+ */
+private void diffuserDangerAuxPompiers() {
+    if (dangerGlobal == 0) return;
+    
+    // Créer un message d'alerte avec le danger actuel
+    AlerteMessage dangerMsg = new AlerteMessage(
+        "Global",           // zone source
+        0,                  // température (non utilisé)
+        0,                  // humidité (non utilisé)
+        dangerGlobal,       // indice de danger
+        "Coordinateur",     // source
+        "Mise à jour danger global: " + dangerGlobal + "/100"
+    );
+    
+    // Diffuser à tous les pompiers occupés (en mission)
+    int nbEnvoyes = 0;
+    for (AgentAddress addr : pompiersOccupes) {
+        sendMessage(addr, dangerMsg);
+        nbEnvoyes++;
+    }
+    
+    // Diffuser aussi aux pompiers disponibles pour info (optionnel)
+    List<AgentAddress> tousPompiers = getAgentsWithRole(
+        AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION, AGRConstants.ROLE_POMPIER);
+    if (tousPompiers != null) {
+        for (AgentAddress addr : tousPompiers) {
+            if (!pompiersOccupes.contains(addr)) {
+                sendMessage(addr, dangerMsg);
+            }
         }
     }
+    
+    if (nbEnvoyes > 0 && cycle % 5 == 0) {
+        getLogger().fine("Danger=" + dangerGlobal + " diffusé à " + nbEnvoyes + " pompier(s)");
+    }
+}
+
+private void informerCapteursExtinction() {
+    if (pompiersDeployes == 0) return;
+    
+    SimpleMessage msg = new SimpleMessage("EXTINCTION_EN_COURS");
+    
+    // Envoyer à tous les capteurs
+    List<AgentAddress> capteurs = getAgentsWithRole(
+        AGRConstants.COMMUNITY, AGRConstants.GROUP_SURVEILLANCE, 
+        AGRConstants.ROLE_CAPTEUR);
+    
+    if (capteurs != null) {
+        for (AgentAddress capteur : capteurs) {
+            sendMessage(capteur, msg);
+        }
+        if (cycle % 5 == 0) {
+            getLogger().info("📢 " + pompiersDeployes + " pompier(s) actif(s) → notification envoyée aux capteurs");
+        }
+    }
+}
+
+private void informerCapteursFinExtinction() {
+    SimpleMessage msg = new SimpleMessage("INCENDIE_MAITRISE");
+    
+    List<AgentAddress> capteurs = getAgentsWithRole(
+        AGRConstants.COMMUNITY, AGRConstants.GROUP_SURVEILLANCE, 
+        AGRConstants.ROLE_CAPTEUR);
+    
+    if (capteurs != null) {
+        for (AgentAddress capteur : capteurs) {
+            sendMessage(capteur, msg);
+        }
+    }
+    getLogger().info("📢 FIN D'EXTINCTION notifiée aux capteurs");
+}
+
 }

@@ -1,0 +1,41 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentCapteur-6] started on 2026-04-07T14:02:47.9212167 --
+--------------------------------------------------------------------------
+
+INFO : [Zone_Nord] C15 | T=23.0C | H=64.6% | Danger=9/100
+INFO : [Zone_Nord] C16 | T=23.4C | H=64.1% | Danger=10/100
+INFO : [Zone_Nord] C17 | T=22.6C | H=64.8% | Danger=9/100
+INFO : [Zone_Nord] C18 | T=23.1C | H=63.1% | Danger=10/100
+INFO : [Zone_Nord] C19 | T=22.6C | H=64.0% | Danger=9/100
+INFO : [Zone_Nord] C20 | T=22.7C | H=64.2% | Danger=9/100
+INFO : [Zone_Nord] C21 | T=22.6C | H=64.4% | Danger=9/100
+INFO : [Zone_Nord] C22 | T=21.6C | H=64.2% | Danger=8/100
+INFO : [Zone_Nord] C23 | T=22.3C | H=65.1% | Danger=8/100
+INFO : [Zone_Nord] C24 | T=23.2C | H=65.1% | Danger=9/100
+INFO : [Zone_Nord] C25 | T=23.9C | H=64.5% | Danger=10/100
+INFO : [Zone_Nord] C26 | T=24.2C | H=64.7% | Danger=10/100
+INFO : [Zone_Nord] C27 | T=25.0C | H=65.5% | Danger=11/100
+INFO : [Zone_Nord] C28 | T=24.7C | H=64.9% | Danger=11/100
+INFO : [Zone_Nord] C29 | T=23.4C | H=65.4% | Danger=9/100
+INFO : [Zone_Nord] C30 | T=22.8C | H=64.7% | Danger=9/100
+INFO : [Zone_Nord] C31 | T=23.1C | H=65.8% | Danger=9/100
+INFO : [Zone_Nord] C32 | T=21.9C | H=67.3% | Danger=7/100
+INFO : [Zone_Nord] C33 | T=23.0C | H=68.5% | Danger=7/100
+INFO : [Zone_Nord] C34 | T=24.0C | H=67.1% | Danger=9/100
+INFO : [Zone_Nord] C35 | T=24.0C | H=67.8% | Danger=9/100
+INFO : [Zone_Nord] C36 | T=24.0C | H=68.8% | Danger=8/100
+INFO : [Zone_Nord] C37 | T=24.9C | H=68.9% | Danger=9/100
+INFO : [Zone_Nord] C38 | T=24.2C | H=69.5% | Danger=8/100
+INFO : [Zone_Nord] C39 | T=23.6C | H=70.4% | Danger=7/100
+INFO : [Zone_Nord] C40 | T=24.5C | H=69.8% | Danger=8/100
+INFO : [Zone_Nord] C41 | T=23.4C | H=67.9% | Danger=8/100
+INFO : [Zone_Nord] C42 | T=22.9C | H=69.4% | Danger=7/100
+INFO : [Zone_Nord] C43 | T=23.7C | H=70.7% | Danger=7/100
+INFO : [Zone_Nord] C44 | T=22.7C | H=70.1% | Danger=6/100
+INFO : [Zone_Nord] C45 | T=22.4C | H=70.5% | Danger=6/100
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentCapteur-6] closed on  2026-04-07T14:04:22.2847931 --
+--------------------------------------------------------------------------
+

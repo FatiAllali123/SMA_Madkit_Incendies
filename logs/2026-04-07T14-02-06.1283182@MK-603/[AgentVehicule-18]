@@ -1,0 +1,26 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentVehicule-18] started on 2026-04-07T14:02:47.9367358 --
+--------------------------------------------------------------------------
+
+INFO : [Citerne_01] Départ vers la forêt !
+INFO : [Citerne_01] Sur zone. Prêt au ravitaillement. Eau=6000L
+INFO : [Citerne_01] Ravitaillement #1 : 975L | Réserve=5025L
+INFO : [Citerne_01] Ravitaillement #2 : 853L | Réserve=4172L
+INFO : [Citerne_01] Ravitaillement #3 : 718L | Réserve=3454L
+INFO : [Citerne_01] Ravitaillement #4 : 973L | Réserve=2481L
+INFO : [Citerne_01] Ravitaillement #5 : 721L | Réserve=1760L
+INFO : [Citerne_01] Ravitaillement #6 : 1036L | Réserve=724L
+INFO : [Citerne_01] Ravitaillement #7 : 724L | Réserve=0L
+WARNING : [Citerne_01] Citerne vide ! Retour pour rechargement...
+INFO : [Citerne_01] Rechargé. Retour sur zone.
+INFO : [Citerne_01] Ravitaillement #8 : 890L | Réserve=5110L
+INFO : [Citerne_01] Ravitaillement #9 : 1180L | Réserve=3930L
+INFO : [Citerne_01] Ravitaillement #10 : 956L | Réserve=2974L
+INFO : [Citerne_01] Ravitaillement #11 : 1019L | Réserve=1955L
+INFO : [Citerne_01] Ravitaillement #12 : 1070L | Réserve=885L
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentVehicule-18] closed on  2026-04-07T14:04:22.5134877 --
+--------------------------------------------------------------------------
+

@@ -1,0 +1,49 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentCoordinateur-5] started on 2026-04-07T14:02:47.9192159 --
+--------------------------------------------------------------------------
+
+WARNING : === NIVEAU : NORMAL → ORANGE (Danger=27/100) ===
+WARNING : >>> +2 pompier(s) → Total=2
+WARNING : >>> +1 véhicule(s) → Total=1
+INFO : 📊 [C27] Danger=27 | ORANGE   | P=2 V=1 H=0 | Prog=0%
+INFO :     Zones actives: Zone_Ouest=27 
+WARNING : === NIVEAU : ORANGE → ROUGE (Danger=39/100) ===
+WARNING : >>> +1 pompier(s) → Total=3
+WARNING : >>> +1 véhicule(s) → Total=2
+INFO : 📊 [C30] Danger=39 | ROUGE    | P=3 V=2 H=0 | Prog=16%
+INFO :     Zones actives: Zone_Ouest=39 
+WARNING : === NIVEAU : ROUGE → CRITIQUE (Danger=52/100) ===
+WARNING : >>> +2 pompier(s) → Total=5
+WARNING : >>> +1 véhicule(s) → Total=3
+INFO : 📊 [C33] Danger=52 | CRITIQUE | P=5 V=3 H=0 | Prog=36%
+INFO :     Zones actives: Zone_Ouest=52 
+INFO : 📊 [C36] Danger=67 | CRITIQUE | P=5 V=3 H=0 | Prog=13%
+INFO :     Zones actives: Zone_Ouest=67 
+WARNING : === NIVEAU : CRITIQUE → EXTREME (Danger=74/100) ===
+WARNING : >>> +2 hélico(s)
+INFO : 📊 [C39] Danger=80 | EXTREME  | P=5 V=3 H=2 | Prog=67%
+INFO :     Zones actives: Zone_Ouest=80 
+INFO : 📊 [C42] Danger=89 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=89 
+INFO : 📊 [C45] Danger=94 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=94 
+INFO : 📊 [C48] Danger=96 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=96 
+INFO : 📊 [C51] Danger=98 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=98 
+INFO : 📊 [C54] Danger=98 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=98 
+INFO : 📊 [C57] Danger=99 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=99 Zone_Sud=25 
+INFO : 📊 [C60] Danger=99 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=99 Zone_Sud=34 
+INFO : 📊 [C63] Danger=99 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=99 Zone_Sud=46 
+INFO : 📊 [C66] Danger=99 | EXTREME  | P=5 V=3 H=2 | Prog=89%
+INFO :     Zones actives: Zone_Ouest=99 Zone_Sud=59 
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentCoordinateur-5] closed on  2026-04-07T14:04:22.2787936 --
+--------------------------------------------------------------------------
+

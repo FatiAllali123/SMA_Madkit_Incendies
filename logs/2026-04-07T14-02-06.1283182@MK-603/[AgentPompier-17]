@@ -1,0 +1,20 @@
+--------------------------------------------------------------------------
+-- Log session for [AgentPompier-17] started on 2026-04-07T14:02:47.9347364 --
+--------------------------------------------------------------------------
+
+WARNING : [Pompier_05] MISSION ACCEPTÉE → Priorité: HAUTE
+INFO : [Pompier_05] Arrivé en forêt. Début opérations.
+INFO : [Pompier_05] Extinction:  13% | Eau= 440L | DangerRés= 76
+INFO : [Pompier_05] Extinction:  31% | Eau= 388L | DangerRés= 60
+INFO : [Pompier_05] Extinction:  52% | Eau= 335L | DangerRés= 42
+INFO : [Pompier_05] Extinction:  68% | Eau= 274L | DangerRés= 28
+INFO : [Pompier_05] Extinction:  89% | Eau= 221L | DangerRés=  9
+INFO : [Pompier_05] Extinction: 100% | Eau= 172L | DangerRés=  0
+WARNING : [Pompier_05] ✓ MISSION ACCOMPLIE — Feu maîtrisé !
+INFO : [Pompier_05] De retour en attente. Prêt pour nouvelle mission.
+
+
+--------------------------------------------------------------------------
+-- Log session for [AgentPompier-17] closed on  2026-04-07T14:04:22.5049564 --
+--------------------------------------------------------------------------
+
