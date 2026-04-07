@@ -184,7 +184,9 @@ public class AgentCoordinateur extends Agent {
     if ("NORMAL".equals(niveauActuel)) {
         if (incendieEnCours) {
             cyclesDangerBas++;
-            if (cyclesDangerBas >= CYCLES_AVANT_FIN && !finDeclaree) declarerFinAlerte();
+           if (cyclesDangerBas >= CYCLES_AVANT_FIN && dangerGlobal < 20 && !finDeclaree) {
+            declarerFinAlerte();
+        }
         }
         return;
     }
