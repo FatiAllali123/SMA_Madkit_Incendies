@@ -52,13 +52,16 @@ public class AgentHelicoptere extends Agent {
                         t.start();
                     }
                 } else if (msg instanceof SimpleMessage) {
-                    if (((SimpleMessage) msg).isFin()) {
-                        getLogger().info("[" + id + "] FIN_ALERTE → Retour base.");
-                        enMission = false;
-                        statut    = "EN_BASE";
-                        actif     = false;
-                    }
-                }
+    SimpleMessage sm = (SimpleMessage) msg;
+    if (sm.isFin() || SimpleMessage.RETOUR_BASE.equals(sm.getContenu())) { // ← MODIFIER
+        getLogger().info("[" + id + "] " + sm.getContenu() + " → Retour base.");
+        enMission = false;
+        statut    = "EN_BASE";
+        
+        leaveRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION, AGRConstants.ROLE_RENFORT);
+        leaveRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT, AGRConstants.ROLE_GESTIONNAIRE);
+    }
+}
             }
             try { Thread.sleep(1000); }
             catch (InterruptedException e) { Thread.currentThread().interrupt(); }

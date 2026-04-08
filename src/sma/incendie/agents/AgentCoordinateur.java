@@ -110,12 +110,9 @@ public class AgentCoordinateur extends Agent {
                     getLogger().info("✓ " + r.getAgentEmetteur() + " terminé et libéré → disponible.");
                 }
 
-                // ── CORRECTION : si plus aucun pompier actif, rappeler véhicules et hélicos ──
-                if (pompiersDeployes == 0 && (vehiculesDeployes > 0 || helicosDeployes > 0)) {
-                    getLogger().info(">> Tous les pompiers ont terminé → rappel véhicules & hélicos.");
-                    rappelerVehicules();
-                    rappelerHelicos();
-                }
+                // ── CORRECTION : NE PAS rappeler les véhicules quand un pompier termine.
+                // Ils restent disponibles pour le prochain feu jusqu'à declarerFinAlerte().
+                // Rappeler ici privait le 2ème incendie de ravitaillement en eau.
             }
 
         } else if (msg instanceof MeteoMessage) {
@@ -184,9 +181,7 @@ public class AgentCoordinateur extends Agent {
     if ("NORMAL".equals(niveauActuel)) {
         if (incendieEnCours) {
             cyclesDangerBas++;
-           if (cyclesDangerBas >= CYCLES_AVANT_FIN && dangerGlobal < 20 && !finDeclaree) {
-            declarerFinAlerte();
-        }
+            if (cyclesDangerBas >= CYCLES_AVANT_FIN && !finDeclaree) declarerFinAlerte();
         }
         return;
     }
@@ -313,35 +308,74 @@ public class AgentCoordinateur extends Agent {
     // Fin d'alerte
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void declarerFinAlerte() {
-        if (finDeclaree) return;
-        finDeclaree = true;
-        getLogger().info("╔════════════════════════════════════╗");
-        getLogger().info("║  INCENDIE MAÎTRISÉ — FIN D'ALERTE ║");
-        getLogger().info("╚════════════════════════════════════╝");
-         // ← NOUVEAU : Informer les capteurs avant d'arrêter
+ private void declarerFinAlerte() {
+    if (finDeclaree) return;
+    finDeclaree = true;
+    getLogger().info("╔════════════════════════════════════╗");
+    getLogger().info("║  INCENDIE MAÎTRISÉ — FIN D'ALERTE ║");
+    getLogger().info("╚════════════════════════════════════╝");
+    
+    // Créer le message une seule fois
+    SimpleMessage fin = new SimpleMessage(SimpleMessage.FIN_ALERTE);
+    
+    // 1. Envoyer FIN_ALERTE à TOUS les pompiers
+    List<AgentAddress> tousPompiers = getAgentsWithRole(
+        AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION, AGRConstants.ROLE_POMPIER);
+    if (tousPompiers != null) {
+        for (AgentAddress addr : tousPompiers) {
+            sendMessage(addr, fin);
+        }
+    }
+    
+    // 2. Envoyer aux véhicules
+    List<AgentAddress> tousVehicules = getAgentsWithRole(
+        AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION, AGRConstants.ROLE_CONDUCTEUR);
+    if (tousVehicules != null) {
+        for (AgentAddress addr : tousVehicules) {
+            sendMessage(addr, fin);
+        }
+    }
+    
+    // 3. Envoyer aux hélicoptères
+    List<AgentAddress> tousHelicos = getAgentsWithRole(
+        AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION, AGRConstants.ROLE_RENFORT);
+    if (tousHelicos != null) {
+        for (AgentAddress addr : tousHelicos) {
+            sendMessage(addr, fin);
+        }
+    }
+    
+    // 4. Informer les capteurs
     informerCapteursFinExtinction();
     
-        SimpleMessage fin = new SimpleMessage(SimpleMessage.FIN_ALERTE);
-        broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
-            AGRConstants.ROLE_POMPIER, fin, AGRConstants.ROLE_DECIDEUR);
-        broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
-            AGRConstants.ROLE_CONDUCTEUR, fin, AGRConstants.ROLE_DECIDEUR);
-        broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_INTERVENTION,
-            AGRConstants.ROLE_RENFORT, fin, AGRConstants.ROLE_DECIDEUR);
-        broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_SURVEILLANCE,
-            AGRConstants.ROLE_CAPTEUR, new SimpleMessage("INCENDIE_MAITRISE"), AGRConstants.ROLE_COORD_SURV);
-        broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT,
-            AGRConstants.ROLE_SUPERVISEUR,
-            new OrdreMessage("RAPPORT_FINAL", "NORMALE",
-                "P=" + pompiersDeployes + " V=" + vehiculesDeployes + " H=" + helicosDeployes),
-            AGRConstants.ROLE_DECIDEUR);
+    // 5. Envoyer rapport final au superviseur
+    broadcastMessageWithRole(AGRConstants.COMMUNITY, AGRConstants.GROUP_COMMANDEMENT,
+        AGRConstants.ROLE_SUPERVISEUR,
+        new OrdreMessage("RAPPORT_FINAL", "NORMALE",
+            "P=" + pompiersDeployes + " V=" + vehiculesDeployes + " H=" + helicosDeployes),
+        AGRConstants.ROLE_DECIDEUR);
 
-        pompiersOccupes.clear(); vehiculesOccupes.clear(); helicosOccupes.clear();
-        pompiersDeployes = 0; vehiculesDeployes = 0; helicosDeployes = 0;
-        niveauActuel = "NORMAL"; incendieEnCours = false;
-        dangerParZone.clear(); dernierRapport.clear();
-    }
+    // 6. Attendre un peu que les messages soient traités
+    try { Thread.sleep(500); } catch (InterruptedException e) {}
+    
+    // 7. Puis vider les ensembles
+    pompiersOccupes.clear();
+    vehiculesOccupes.clear();
+    helicosOccupes.clear();
+    pompiersDeployes = 0;
+    vehiculesDeployes = 0;
+    helicosDeployes = 0;
+    niveauActuel = "NORMAL";
+    niveauCandidat = "NORMAL";
+    cyclesConfirmation = 0;
+    incendieEnCours = false;
+    cyclesDangerBas = 0;
+    finDeclaree = false;  // ← CORRECTION CRITIQUE : permettre la détection du prochain incendie
+    dangerParZone.clear();
+    dernierRapport.clear();
+    progressionMoyenne = 0;
+    getLogger().info("✅ Système réinitialisé — Prêt pour prochain incendie.");
+}
 
     // ─────────────────────────────────────────────────────────────────────────
     // Utilitaires

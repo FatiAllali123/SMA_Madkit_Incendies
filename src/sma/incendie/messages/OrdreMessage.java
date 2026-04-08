@@ -16,6 +16,7 @@ public class OrdreMessage extends Message {
     private final String priorite;    // FAIBLE, MOYENNE, HAUTE, URGENTE
     private final String instructions;
 
+    
     public OrdreMessage(String typeAction, String priorite, String instructions) {
         this.idOrdre      = ++compteur;
         this.typeAction   = typeAction;

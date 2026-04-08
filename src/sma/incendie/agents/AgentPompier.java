@@ -70,7 +70,7 @@ protected void live() {
                     getLogger().info("[" + id + "] FIN_ALERTE → Retour caserne.");
                     enMission = false;
                     statut = "EN_ATTENTE";
-                    actif = false;
+                    
                 }
             } else if (msg instanceof AlerteMessage && enMission) {
                 // ← NOUVEAU : Mettre à jour le danger réel

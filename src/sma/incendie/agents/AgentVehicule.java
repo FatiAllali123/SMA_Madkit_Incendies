@@ -54,8 +54,7 @@ public class AgentVehicule extends Agent {
         envoyerRapport(100, "RETOUR", "Retour au dépôt.");
         surZone = false;
         statut  = "EN_ATTENTE";
-        if (sm.isFin()) actif = false;
-        // Si RETOUR_BASE, reste actif et disponible pour la prochaine intervention
+        
     }
 }
             }

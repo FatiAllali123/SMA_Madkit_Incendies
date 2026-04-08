@@ -16,17 +16,16 @@ import java.util.*;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.swing.Timer;
+
 /**
- * SimulationGUI v2 — Interface graphique pour la forêt unique.
- *
- * Panneaux :
- *   1. ForetPanel   — carte animée de la forêt (une seule zone, feu global)
- *   2. NiveauPanel  — jauge de danger global avec niveau d'intervention
- *   3. MeteoPanel   — conditions météo
- *   4. AgentPanel   — état de chaque agent en temps réel
- *   5. LogPanel     — journal des événements
- *
- * Compatible MadKit 5.3.1
+ * SimulationGUI v3 — Interface graphique améliorée pour la forêt.
+ * 
+ * Améliorations :
+ * - Flammes proportionnelles au danger (plus le danger est élevé, plus il y a de flammes)
+ * - Propagation du feu dans chaque zone (multiples points d'incendie)
+ * - Agents positionnés sur la zone concernée (pompiers dispersés, véhicules en bas, hélicos au-dessus)
+ * - Effets visuels : hélicoptères qui arrosent, pompiers avec lance à eau
+ * - Icônes agrandies pour meilleure visibilité
  */
 public class SimulationGUI extends Agent {
 
@@ -69,11 +68,14 @@ public class SimulationGUI extends Agent {
 
     // ── Positions agents sur la carte ─────────────────────────────────────────
     private final Set<String> agentsSurZone = Collections.synchronizedSet(new HashSet<>());
+    
+    // Map pour stocker la zone assignée à chaque agent (si connue)
+    private final Map<String, String> agentZone = Collections.synchronizedMap(new HashMap<>());
 
     // ── Activation MadKit ─────────────────────────────────────────────────────
     @Override
     protected void activate() {
-        getLogger().info("=== SimulationGUI v2 : Démarrage ===");
+        getLogger().info("=== SimulationGUI v3 : Démarrage ===");
 
         // Initialiser les zones (les 4 capteurs)
         for (String z : new String[]{"Zone_Nord", "Zone_Sud", "Zone_Est", "Zone_Ouest"}) {
@@ -160,31 +162,39 @@ public class SimulationGUI extends Agent {
             log("ALERTE", a.getZoneSource() + " | Danger=" + a.getIndiceDanger()
                 + "/100 | " + a.getNiveauAlerte(), couleurDanger(a.getIndiceDanger()));
 
-        } else if (msg instanceof OrdreMessage) {
-            OrdreMessage o = (OrdreMessage) msg;
-            nbOrdres++;
+       } else if (msg instanceof OrdreMessage) {
+    OrdreMessage o = (OrdreMessage) msg;
+    nbOrdres++;
 
-            if ("RAPPORT_FINAL".equals(o.getTypeAction())) {
-                niveauIntervention = "FIN_ALERTE";
-                dangerGlobal       = 0;
-                agentsSurZone.clear();
-                zones.values().forEach(z -> { z.enFeu = false; z.danger = 0; });
-                log("SYSTÈME", "=== FIN D'ALERTE OFFICIELLE ===", new Color(0, 200, 100));
-            } else {
-                // Compter les ressources déployées
-                String action = o.getTypeAction();
-                if ("EXTINCTION".equals(action)) {
-                    pompiersDeployes  = extraireNombre(o.getInstructions(), pompiersDeployes);
-                } else if ("SUPPORT_TRANSPORT".equals(action)) {
-                    vehiculesDeployes = extraireNombre(o.getInstructions(), vehiculesDeployes);
-                } else if ("ARROSAGE_AERIEN".equals(action)) {
-                    helicosDeployes++;
-                }
-                log("ORDRE", "#" + o.getIdOrdre() + " → " + action + " | " + o.getPriorite(),
-                    new Color(148, 0, 211));
-            }
-
-        } else if (msg instanceof RapportMessage) {
+    if ("RAPPORT_FINAL".equals(o.getTypeAction())) {
+        niveauIntervention = "FIN_ALERTE";
+        dangerGlobal       = 0;
+        agentsSurZone.clear();
+        agentZone.clear();
+        zones.values().forEach(z -> { z.enFeu = false; z.danger = 0; });
+        // ← Réinitialiser les compteurs
+        pompiersDeployes = 0;
+        vehiculesDeployes = 0;
+        helicosDeployes = 0;
+        log("SYSTÈME", "=== FIN D'ALERTE OFFICIELLE ===", new Color(0, 200, 100));
+    } else {
+        // Compter les ressources déployées - CORRECTION
+        String action = o.getTypeAction();
+        if ("EXTINCTION".equals(action)) {
+            pompiersDeployes++;
+            log("ORDRE", "🚒 Pompier déployé (" + pompiersDeployes + "/5)", new Color(220, 80, 80));
+        } else if ("SUPPORT_TRANSPORT".equals(action)) {
+            vehiculesDeployes++;
+            log("ORDRE", "🚛 Véhicule déployé (" + vehiculesDeployes + "/3)", new Color(255, 140, 0));
+        } else if ("ARROSAGE_AERIEN".equals(action)) {
+            helicosDeployes++;
+            log("ORDRE", "🚁 Hélicoptère déployé (" + helicosDeployes + "/2)", new Color(180, 0, 200));
+        } else {
+            log("ORDRE", "#" + o.getIdOrdre() + " → " + action + " | " + o.getPriorite(),
+                new Color(148, 0, 211));
+        }
+    }
+}else if (msg instanceof RapportMessage) {
             RapportMessage r = (RapportMessage) msg;
             String nom    = r.getAgentEmetteur();
             String statut = r.getStatut();
@@ -193,8 +203,23 @@ public class SimulationGUI extends Agent {
             if ("SUR_ZONE".equals(statut) || "EXTINCTION".equals(statut)
                     || "ARROSAGE_EFFECTUE".equals(statut)) {
                 agentsSurZone.add(nom);
+                // Essayer de déterminer la zone à partir du message
+                String zone = extraireZoneDuMessage(r.getObservations());
+                if (zone != null) agentZone.put(nom, zone);
             } else if ("TERMINE".equals(statut) || "RETOUR".equals(statut)) {
                 agentsSurZone.remove(nom);
+                agentZone.remove(nom);
+                // ← NOUVEAU : Décrémenter les compteurs quand un agent termine
+        if (nom.contains("Pompier")) {
+            pompiersDeployes = Math.max(0, pompiersDeployes - 1);
+            log("INFO", "Pompier " + nom + " a terminé → " + pompiersDeployes + "/5 restants", new Color(100, 180, 100));
+        } else if (nom.contains("Citerne")) {
+            vehiculesDeployes = Math.max(0, vehiculesDeployes - 1);
+            log("INFO", "Véhicule " + nom + " a terminé → " + vehiculesDeployes + "/3 restants", new Color(100, 180, 100));
+        } else if (nom.contains("Helico")) {
+            helicosDeployes = Math.max(0, helicosDeployes - 1);
+            log("INFO", "Hélicoptère " + nom + " a terminé → " + helicosDeployes + "/2 restants", new Color(100, 180, 100));
+        }
             }
 
             // Progression moyenne
@@ -237,6 +262,7 @@ public class SimulationGUI extends Agent {
                 niveauIntervention = "FIN_ALERTE";
                 dangerGlobal       = 0;
                 agentsSurZone.clear();
+                agentZone.clear();
                 zones.values().forEach(z -> { z.enFeu = false; z.danger = 0; });
                 // Mettre tous les G3 en retour
                 agents.forEach((k, ai) -> {
@@ -253,6 +279,14 @@ public class SimulationGUI extends Agent {
         }
 
         SwingUtilities.invokeLater(this::rafraichir);
+    }
+
+    private String extraireZoneDuMessage(String observations) {
+        if (observations == null) return null;
+        for (String zone : zones.keySet()) {
+            if (observations.contains(zone)) return zone;
+        }
+        return null;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -303,7 +337,7 @@ public class SimulationGUI extends Agent {
     // ── Construction de l'interface ───────────────────────────────────────────
 
     private void construireInterface() {
-        frame = new JFrame("SMA — Gestion Incendie Forêt (v2)");
+        frame = new JFrame("SMA — Gestion Incendie Forêt (v3)");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1400, 900);
         frame.setLocationRelativeTo(null);
@@ -358,185 +392,395 @@ public class SimulationGUI extends Agent {
     // ══════════════════════════════════════════════════════════════════════════
 
     class ForetPanel extends JPanel {
-        private int flammePhase = 0;
-        private Timer localTimer;
+      private int flammePhase = 0;
+    private Timer localTimer;
+    
+    // Stocker les points de feu pour chaque zone - CLÉ UNIQUE PAR ZONE
+    private final Map<String, List<Point>> pointsFeu = new HashMap<>();
+    private final Map<String, List<Point>> pointsPropagation = new HashMap<>();
+    private final Map<String, Integer> dernierDanger = new HashMap<>();
 
-        ForetPanel() {
-            setBackground(new Color(12, 35, 12));
-            setBorder(titre("Forêt — Vue d'ensemble"));
-            localTimer = new Timer(80, e -> { flammePhase = (flammePhase + 1) % 16; repaint(); });
-            localTimer.start();
+    ForetPanel() {
+        setBackground(new Color(12, 35, 12));
+        setBorder(titre("Forêt — Vue d'ensemble"));
+        localTimer = new Timer(80, e -> { 
+            flammePhase = (flammePhase + 1) % 16; 
+            repaint(); 
+        });
+        localTimer.start();
+    }
+    
+    private void initialiserPointsFeu(String zoneNom, int x, int y, int w, int h) {
+        // Utiliser un seed unique basé sur le nom de la zone pour des points reproductibles
+        Random rnd = new Random(zoneNom.hashCode() * 31L);
+        List<Point> points = new ArrayList<>();
+        int nbPoints = 8 + rnd.nextInt(8);  // Entre 8 et 15 points
+        
+        for (int i = 0; i < nbPoints; i++) {
+            // Points uniquement à l'intérieur de la zone
+            int px = x + 15 + rnd.nextInt(Math.max(1, w - 30));
+            int py = y + 20 + rnd.nextInt(Math.max(1, h - 40));
+            points.add(new Point(px, py));
+        }
+        pointsFeu.put(zoneNom, points);
+        pointsPropagation.put(zoneNom, new ArrayList<>());
+        dernierDanger.put(zoneNom, 0);
+    }
+    
+    private void mettreAJourPropagation(String zoneNom, int danger, int x, int y, int w, int h) {
+        int oldDanger = dernierDanger.getOrDefault(zoneNom, 0);
+        if (danger > oldDanger + 10) {
+            List<Point> prop = pointsPropagation.get(zoneNom);
+            if (prop == null) {
+                prop = new ArrayList<>();
+                pointsPropagation.put(zoneNom, prop);
+            }
+            Random rnd = new Random(System.currentTimeMillis() % 10000 + zoneNom.hashCode());
+            int nbNouveaux = Math.min(5, (danger - oldDanger) / 10);
+            for (int n = 0; n < nbNouveaux && prop.size() < 15; n++) {
+                int px = x + 15 + rnd.nextInt(Math.max(1, w - 30));
+                int py = y + 20 + rnd.nextInt(Math.max(1, h - 40));
+                prop.add(new Point(px, py));
+            }
+            dernierDanger.put(zoneNom, danger);
+        }
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        int w = getWidth(), h = getHeight();
+
+        // Fond forêt dégradé
+        g2.setPaint(new GradientPaint(0, 0, new Color(8, 45, 8), w, h, new Color(18, 70, 18)));
+        g2.fillRect(0, 0, w, h);
+
+        // Dessiner les 4 zones capteurs (quadrants)
+        int mx = w / 2, my = h / 2;
+        int pad = 28;
+        
+        // Zone Nord
+        dessinerZone(g2, pad, pad, mx-pad-4, my-pad-4, "Zone_Nord");
+        
+        // Zone Est
+        dessinerZone(g2, mx+4, pad, mx-pad-4, my-pad-4, "Zone_Est");
+        
+        // Zone Sud
+        dessinerZone(g2, pad, my+4, mx-pad-4, my-pad-4, "Zone_Sud");
+        
+        // Zone Ouest
+        dessinerZone(g2, mx+4, my+4, mx-pad-4, my-pad-4, "Zone_Ouest");
+
+        // Rose des vents (coin sup droit)
+        dessinerRoseVent(g2, w - 55, 55, 40);
+
+        // Légende
+        dessinerLegende(g2, pad, h - 22);
+
+        g2.dispose();
+    }
+
+    private void dessinerZone(Graphics2D g2, int x, int y, int w, int h, String nom) {
+        ZoneInfo zi = zones.get(nom);
+        if (zi == null) return;
+
+        // Fond selon état
+        Color fond;
+        if (zi.enFeu)       fond = new Color(55, 12, 5);
+        else if (zi.danger >= AGRConstants.SEUIL_SURVEILLANCE) fond = new Color(40, 30, 5);
+        else                fond = new Color(14, 52, 14);
+        g2.setColor(fond);
+        g2.fillRoundRect(x, y, w, h, 14, 14);
+
+        // Arbres (points verts) - DESSINÉS UNIQUEMENT DANS LEUR ZONE
+        Random rnd = new Random(nom.hashCode());
+        g2.setColor(new Color(22, 100, 22, 140));
+        for (int i = 0; i < 30; i++) {
+            int tx = x + 12 + rnd.nextInt(Math.max(1, w - 24));
+            int ty = y + 22 + rnd.nextInt(Math.max(1, h - 44));
+            int ts = 4 + rnd.nextInt(5);
+            int[] px = {tx, tx - ts, tx + ts};
+            int[] py = {ty - ts*2, ty, ty};
+            g2.fillPolygon(px, py, 3);
         }
 
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-            int w = getWidth(), h = getHeight();
-
-            // Fond forêt dégradé
-            g2.setPaint(new GradientPaint(0, 0, new Color(8, 45, 8), w, h, new Color(18, 70, 18)));
-            g2.fillRect(0, 0, w, h);
-
-            // Dessiner les 4 zones capteurs (quadrants)
-            int mx = w / 2, my = h / 2;
-            int pad = 28;
-            dessinerZone(g2, pad,    pad,    mx-pad-4, my-pad-4, "Zone_Nord");
-            dessinerZone(g2, mx+4,   pad,    mx-pad-4, my-pad-4, "Zone_Est");
-            dessinerZone(g2, pad,    my+4,   mx-pad-4, my-pad-4, "Zone_Sud");
-            dessinerZone(g2, mx+4,   my+4,   mx-pad-4, my-pad-4, "Zone_Ouest");
-
-            // Agents sur zone (au centre de la forêt)
-            dessinerAgentsSurZone(g2, w/2 - 60, h/2 - 30);
-
-            // Rose des vents (coin sup droit)
-            dessinerRoseVent(g2, w - 55, 55, 40);
-
-            // Légende
-            dessinerLegende(g2, pad, h - 22);
-
-            g2.dispose();
+        // Flammes si en feu (avec propagation) - UNIQUEMENT DANS LEUR ZONE
+        if (zi.enFeu) {
+            // Initialiser les points de feu pour cette zone si nécessaire
+            if (!pointsFeu.containsKey(nom)) {
+                initialiserPointsFeu(nom, x, y, w, h);
+            }
+            mettreAJourPropagation(nom, zi.danger, x, y, w, h);
+            dessinerFlammesPropagees(g2, x, y, w, h, nom, zi.danger);
+            // Dessiner les agents sur cette zone
+            dessinerAgentsSurZone(g2, x, y, w, h, nom);
         }
 
-        private void dessinerZone(Graphics2D g2, int x, int y, int w, int h, String nom) {
-            ZoneInfo zi = zones.get(nom);
-            if (zi == null) return;
+        // Bordure
+        Color bord;
+        if (zi.enFeu)      bord = new Color(255, 80, 0);
+        else if (zi.danger >= AGRConstants.SEUIL_SURVEILLANCE) bord = new Color(255, 200, 0);
+        else               bord = new Color(30, 100, 30);
+        g2.setColor(bord);
+        g2.setStroke(new BasicStroke(zi.enFeu ? 2.5f : 1.2f));
+        g2.drawRoundRect(x, y, w, h, 14, 14);
+        g2.setStroke(new BasicStroke(1f));
 
-            // Fond selon état
-            Color fond;
-            if (zi.enFeu)       fond = new Color(55, 12, 5);
-            else if (zi.danger >= AGRConstants.SEUIL_SURVEILLANCE) fond = new Color(40, 30, 5);
-            else                fond = new Color(14, 52, 14);
-            g2.setColor(fond);
-            g2.fillRoundRect(x, y, w, h, 14, 14);
+        // Nom de la zone
+        g2.setFont(new Font("Consolas", Font.BOLD, 12));
+        g2.setColor(Color.WHITE);
+        g2.drawString(nom.replace("Zone_", ""), x + 8, y + 16);
 
-            // Arbres (points verts)
-            Random rnd = new Random(nom.hashCode());
-            g2.setColor(new Color(22, 100, 22, 140));
-            for (int i = 0; i < 25; i++) {
-                int tx = x + 12 + rnd.nextInt(Math.max(1, w - 24));
-                int ty = y + 22 + rnd.nextInt(Math.max(1, h - 44));
-                int ts = 4 + rnd.nextInt(4);
-                // Triangle arbre
-                int[] px = {tx, tx - ts, tx + ts};
-                int[] py = {ty - ts*2, ty, ty};
-                g2.fillPolygon(px, py, 3);
-            }
-
-            // Flammes si en feu
-            if (zi.enFeu) {
-                dessinerFlammes(g2, x, y, w, h, zi.danger);
-            }
-
-            // Bordure
-            Color bord;
-            if (zi.enFeu)      bord = new Color(255, 80, 0);
-            else if (zi.danger >= AGRConstants.SEUIL_SURVEILLANCE) bord = new Color(255, 200, 0);
-            else               bord = new Color(30, 100, 30);
-            g2.setColor(bord);
-            g2.setStroke(new BasicStroke(zi.enFeu ? 2.5f : 1.2f));
-            g2.drawRoundRect(x, y, w, h, 14, 14);
-            g2.setStroke(new BasicStroke(1f));
-
-            // Nom de la zone
+        // Indicateurs T / H / Danger
+        if (zi.danger > 0) {
+            g2.setFont(new Font("Consolas", Font.PLAIN, 11));
+            g2.setColor(new Color(220, 220, 180));
+            g2.drawString(String.format("T=%.0f°C  H=%.0f%%", zi.temperature, zi.humidite),
+                x + 8, y + h - 18);
+            g2.setColor(couleurDanger(zi.danger));
             g2.setFont(new Font("Consolas", Font.BOLD, 12));
-            g2.setColor(Color.WHITE);
-            g2.drawString(nom.replace("Zone_", ""), x + 8, y + 16);
-
-            // Indicateurs T / H / Danger
-            if (zi.danger > 0) {
-                g2.setFont(new Font("Consolas", Font.PLAIN, 11));
-                g2.setColor(new Color(220, 220, 180));
-                g2.drawString(String.format("T=%.0f°C  H=%.0f%%", zi.temperature, zi.humidite),
-                    x + 8, y + h - 18);
-                g2.setColor(couleurDanger(zi.danger));
-                g2.setFont(new Font("Consolas", Font.BOLD, 12));
-                g2.drawString("Danger: " + zi.danger + "/100", x + 8, y + h - 5);
+            g2.drawString("Danger: " + zi.danger + "/100", x + 8, y + h - 5);
+        }
+    }
+    
+    private void dessinerFlammesPropagees(Graphics2D g2, int x, int y, int w, int h, 
+                                           String zoneNom, int danger) {
+        List<Point> points = pointsFeu.get(zoneNom);
+        if (points == null) return;
+        
+        List<Point> prop = pointsPropagation.getOrDefault(zoneNom, Collections.emptyList());
+        
+        // Le nombre de flammes actives dépend du danger
+        int nbFlammesBase = Math.max(4, Math.min(points.size(), danger / 6));
+        int nbFlammesProp = Math.min(prop.size(), danger / 12);
+        int nbFlammesActives = nbFlammesBase + nbFlammesProp;
+        
+        // Dessiner les flammes de base
+        for (int i = 0; i < nbFlammesBase && i < points.size(); i++) {
+            Point p = points.get(i);
+            // Vérifier que le point est bien dans la zone
+            if (p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h) {
+                dessinerFlamme(g2, p.x, p.y, danger, i);
             }
         }
-
- private void dessinerFlammes(Graphics2D g2, int x, int y, int w, int h, int danger) {
-    int nb = Math.max(4, danger / 12);
-    Random rnd = new Random(danger + flammePhase / 4);
-    for (int i = 0; i < nb; i++) {
-        int fx = x + 16 + rnd.nextInt(Math.max(1, w - 32));
-        int fy = y + 20 + rnd.nextInt(Math.max(1, h - 50));
-        int taille = 8 + (flammePhase + i * 3) % 8 + danger / 18;
+        
+        // Dessiner les flammes de propagation
+        for (int i = 0; i < nbFlammesProp && i < prop.size(); i++) {
+            Point p = prop.get(i);
+            if (p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h) {
+                dessinerFlamme(g2, p.x, p.y, danger, i + points.size());
+            }
+        }
+        
+        // Effet de lueur globale sur la zone (optionnel)
+        if (danger > 50) {
+            float alpha = Math.min(0.2f, (danger - 50) / 250.0f);
+            g2.setColor(new Color(1f, 0.3f, 0f, alpha));
+            g2.fillRoundRect(x + 4, y + 4, w - 8, h - 8, 10, 10);
+        }
+    }
+    
+    private void dessinerFlamme(Graphics2D g2, int fx, int fy, int danger, int seed) {
+        // Scintillement
+        double scintille = Math.sin(flammePhase * 0.45 + seed * 1.2);
+        
+        // Taille proportionnelle au danger
+        int tailleBase = 6 + danger / 10;
+        int taille = tailleBase + (int)(scintille * 4);
+        taille = Math.max(5, Math.min(25, taille));
+        
+        // Couleur selon danger
+        Color flammeColor;
+        if (danger >= 85) {
+            flammeColor = new Color(255, 255, 180, 220);
+        } else if (danger >= 70) {
+            flammeColor = new Color(255, 220, 80, 210);
+        } else if (danger >= 50) {
+            flammeColor = new Color(255, 155, 40, 195);
+        } else if (danger >= 35) {
+            flammeColor = new Color(255, 90, 10, 175);
+        } else {
+            flammeColor = new Color(220, 60, 0, 150);
+        }
+        
+        // Flamme principale
         int[] px = {fx, fx - taille/2, fx + taille/2};
         int[] py = {fy - taille*2, fy, fy};
-
-        // ✅ FIX : clamp alpha entre 0.0f et 1.0f
-        float alpha = Math.max(0f, Math.min(1f,
-            0.65f + 0.35f * (float) Math.sin(flammePhase * 0.4 + i)
-        ));
-
-        // ✅ FIX : clamp green entre 0.0f et 1.0f
-        float green = Math.max(0f, Math.min(1f,
-            0.25f + 0.3f * (float) Math.sin(flammePhase * 0.3f + i)
-        ));
-
-        g2.setColor(new Color(1f, green, 0f, alpha));
+        g2.setColor(flammeColor);
         g2.fillPolygon(px, py, 3);
-
-        // ✅ FIX : alpha de 50/255 ≈ 0.196f — ok, mais on sécurise aussi
-        g2.setColor(new Color(255, 200, 0, 50));
-        g2.fillOval(fx - taille, fy - taille, taille * 2, taille * 2);
+        
+        // Flamme secondaire (si danger suffisant)
+        if (danger > 40) {
+            int taille2 = Math.max(3, taille - 4);
+            int[] px2 = {fx - 4, fx - taille2/2 - 2, fx + taille2/2 - 4};
+            int[] py2 = {fy - taille2 - 4, fy + 2, fy + 2};
+            g2.setColor(new Color(255, 100, 0, 160));
+            g2.fillPolygon(px2, py2, 3);
+        }
+        
+        // Effet de lueur
+        int lueur = taille + 4;
+        g2.setColor(new Color(255, 80, 0, 40));
+        g2.fillOval(fx - lueur, fy - lueur, lueur * 2, lueur * 2);
     }
-}
-
-
-        private void dessinerAgentsSurZone(Graphics2D g2, int cx, int cy) {
-            List<String> surZone;
-            synchronized (agentsSurZone) { surZone = new ArrayList<>(agentsSurZone); }
-            if (surZone.isEmpty()) return;
-
-            // Fond semi-transparent pour la zone d'intervention
-            g2.setColor(new Color(0, 100, 255, 30));
-            g2.fillOval(cx - 70, cy - 40, 140, 80);
-
-            int startX = cx - (surZone.size() * 22) / 2;
-            for (int i = 0; i < surZone.size(); i++) {
-                String nom = surZone.get(i);
-                int ax = startX + i * 24;
-                int ay = cy;
-                if (nom.contains("Pompier") || nom.contains("pompier"))
-                    dessinerIconePompier(g2, ax, ay);
-                else if (nom.contains("Helico") || nom.contains("helico"))
-                    dessinerIconeHelico(g2, ax, ay - 20);
-                else if (nom.contains("Citerne") || nom.contains("Vehicule"))
-                    dessinerIconeVehicule(g2, ax, ay);
+        
+        private void dessinerAgentsSurZone(Graphics2D g2, int x, int y, int w, int h, String zoneNom) {
+            ZoneInfo zi = zones.get(zoneNom);
+            if (zi == null || !zi.enFeu) return;
+            
+            // Récupérer les agents sur zone
+            List<String> pompiers = new ArrayList<>();
+            List<String> vehicules = new ArrayList<>();
+            List<String> helicos = new ArrayList<>();
+            
+            synchronized (agentsSurZone) {
+                for (String nom : agentsSurZone) {
+                    if (nom.contains("Pompier")) pompiers.add(nom);
+                    else if (nom.contains("Helico")) helicos.add(nom);
+                    else if (nom.contains("Citerne")) vehicules.add(nom);
+                }
             }
+            
+            Random rnd = new Random(zoneNom.hashCode());
+            
+            // Pompiers : dispersés dans la zone (icônes plus grandes)
+            for (int i = 0; i < pompiers.size() && i < 6; i++) {
+                int px = x + 20 + rnd.nextInt(Math.max(1, w - 40));
+                int py = y + 30 + rnd.nextInt(Math.max(1, h - 60));
+                dessinerIconePompierAvecEau(g2, px, py, flammePhase);
+            }
+            
+            // Véhicules : en bas de la zone (icônes plus grandes)
+            for (int i = 0; i < vehicules.size() && i < 3; i++) {
+                int px = x + 30 + i * 50;
+                int py = y + h - 35;
+                dessinerIconeVehicule(g2, px, py);
+            }
+            
+            // Hélicoptères : au-dessus de la zone (icônes plus grandes)
+            for (int i = 0; i < helicos.size() && i < 2; i++) {
+                int px = x + w / 2 - 40 + i * 70;
+                int py = y - 30;
+                dessinerHelicoVolantAvecEau(g2, px, py, flammePhase);
+            }
+        }
+        
+        private void dessinerIconePompierAvecEau(Graphics2D g2, int x, int y, int phase) {
+            // Corps (plus grand : 20x20 au lieu de 14x14)
+            g2.setColor(new Color(220, 40, 40));
+            g2.fillRoundRect(x, y, 20, 20, 6, 6);
+            
+            // Casque (plus grand)
+            g2.setColor(new Color(255, 80, 0));
+            g2.fillArc(x + 2, y - 6, 16, 12, 0, 180);
+            
+            // Lance à eau (plus longue)
+            g2.setColor(new Color(100, 100, 100));
+            g2.setStroke(new BasicStroke(3f));
+            g2.drawLine(x + 17, y + 10, x + 32, y + 7);
+            
+            // Jet d'eau (plus visible et animé)
+            g2.setColor(new Color(100, 200, 255, 200));
+            g2.setStroke(new BasicStroke(2.5f));
+            for (int i = 0; i < 8; i++) {
+                int dx = x + 32 + i * 4;
+                int dy = y + 7 - (phase + i * 2) % 6;
+                g2.drawLine(dx, dy, dx + 5, dy - 2);
+                
+                // Gouttes d'eau
+                if (i % 2 == 0) {
+                    g2.fillOval(dx + 2, dy + 2, 3, 4);
+                }
+            }
+            g2.setStroke(new BasicStroke(1f));
+            
+            // Détails (visage)
+            g2.setColor(Color.YELLOW);
+            g2.fillOval(x + 14, y + 4, 3, 3);
+            g2.fillOval(x + 14, y + 12, 3, 3);
+        }
+        
+        private void dessinerIconeVehicule(Graphics2D g2, int x, int y) {
+            // Corps (plus grand : 30x16 au lieu de 22x12)
+            g2.setColor(new Color(255, 140, 0));
+            g2.fillRoundRect(x, y + 5, 30, 16, 6, 6);
+            
+            // Cabine
+            g2.setColor(new Color(200, 200, 220));
+            g2.fillRoundRect(x + 16, y + 6, 14, 10, 4, 4);
+            
+            // Roues (plus grandes)
+            g2.setColor(Color.DARK_GRAY);
+            g2.fillOval(x + 5, y + 19, 8, 8);
+            g2.fillOval(x + 19, y + 19, 8, 8);
+            
+            // Gyrophare (clignotant)
+            g2.setColor(new Color(255, 0, 0, 150 + (int)(Math.sin(System.currentTimeMillis() * 0.01) * 50)));
+            g2.fillOval(x + 24, y + 2, 6, 6);
+            
+            // Réservoir d'eau
+            g2.setColor(new Color(100, 150, 200));
+            g2.fillRoundRect(x + 2, y + 8, 12, 10, 3, 3);
+        }
+        
+        private void dessinerHelicoVolantAvecEau(Graphics2D g2, int x, int y, int phase) {
+            // Corps (plus grand : 45x16 au lieu de 35x12)
+            g2.setColor(new Color(100, 100, 150));
+            g2.fillRoundRect(x, y, 45, 16, 8, 8);
+            
+            // Rotor principal (plus grand)
+            g2.setColor(new Color(80, 80, 120));
+            g2.setStroke(new BasicStroke(2.5f));
+            double angle = Math.toRadians(phase * 45);
+            int rx = x + 22;
+            int ry = y - 3;
+            int rLen = 38;
+            int x1 = rx + (int)(rLen * Math.cos(angle));
+            int y1 = ry + (int)(rLen * Math.sin(angle));
+            int x2 = rx - (int)(rLen * Math.cos(angle));
+            int y2 = ry - (int)(rLen * Math.sin(angle));
+            g2.drawLine(x1, y1, x2, y2);
+            
+            // Rotor arrière
+            g2.drawLine(x + 42, y + 8, x + 55, y + 8);
+            
+            // Cabine
+            g2.setColor(new Color(150, 150, 200));
+            g2.fillRoundRect(x + 26, y + 3, 16, 10, 5, 5);
+            
+            // Arrosage (gouttes d'eau plus grandes et plus nombreuses)
+            g2.setColor(new Color(100, 200, 255, 220));
+            for (int i = 0; i < 15; i++) {
+                int dx = x + 32 + (i * 3);
+                int dy = y + 18 + (phase + i * 4) % 20;
+                g2.fillOval(dx, dy, 4, 6);
+            }
+            
+            // Hélice de queue
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawLine(x + 48, y + 8, x + 58, y + 3);
         }
 
         private void dessinerIconePompier(Graphics2D g2, int x, int y) {
             g2.setColor(new Color(220, 40, 40));
-            g2.fillRoundRect(x, y, 16, 16, 4, 4);
+            g2.fillRoundRect(x, y, 20, 20, 6, 6);
             g2.setColor(new Color(255, 80, 0));
-            g2.fillArc(x + 1, y - 4, 14, 10, 0, 180);
+            g2.fillArc(x + 2, y - 6, 16, 12, 0, 180);
             g2.setColor(new Color(0, 150, 255));
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawLine(x + 15, y + 8, x + 20, y + 4);
+            g2.setStroke(new BasicStroke(3f));
+            g2.drawLine(x + 17, y + 10, x + 26, y + 6);
             g2.setStroke(new BasicStroke(1f));
-        }
-
-        private void dessinerIconeVehicule(Graphics2D g2, int x, int y) {
-            g2.setColor(new Color(255, 140, 0));
-            g2.fillRoundRect(x, y + 4, 20, 10, 3, 3);
-            g2.setColor(new Color(200, 200, 220));
-            g2.fillRoundRect(x + 10, y + 5, 10, 7, 3, 3);
-            g2.setColor(Color.DARK_GRAY);
-            g2.fillOval(x + 2, y + 12, 5, 5);
-            g2.fillOval(x + 13, y + 12, 5, 5);
         }
 
         private void dessinerIconeHelico(Graphics2D g2, int x, int y) {
             g2.setColor(new Color(180, 0, 200));
-            g2.fillRoundRect(x + 3, y + 5, 14, 8, 4, 4);
+            g2.fillRoundRect(x + 5, y + 8, 20, 12, 6, 6);
             g2.setColor(new Color(220, 50, 240));
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawLine(x, y + 3, x + 20, y + 3);
+            g2.setStroke(new BasicStroke(3f));
+            g2.drawLine(x, y + 4, x + 28, y + 4);
             g2.setStroke(new BasicStroke(1f));
         }
 
@@ -593,8 +837,7 @@ public class SimulationGUI extends Agent {
     // ══════════════════════════════════════════════════════════════════════════
     // PANNEAU 2 : Bandeau niveau d'intervention
     // ══════════════════════════════════════════════════════════════════════════
-
-    class NiveauPanel extends JPanel {
+ class NiveauPanel extends JPanel {
         NiveauPanel() {
             setBackground(new Color(18, 18, 28));
             setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(50, 50, 80)));
@@ -605,61 +848,59 @@ public class SimulationGUI extends Agent {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            int w = getWidth(), h = getHeight();
+
+            int w = getWidth();
 
             // Titre
             g2.setFont(new Font("Consolas", Font.BOLD, 20));
             g2.setColor(new Color(255, 160, 0));
-            g2.drawString("SMA — GESTION INCENDIE FORÊT", 16, 40);
+            g2.drawString("SMA — GESTION INCENDIE FORÊT", 16, 35);
 
-            // Badge niveau d'intervention
-            Color niveauColor = switch (niveauIntervention) {
-                case "EXTREME"   -> new Color(180, 0, 255);
-                case "CRITIQUE"  -> new Color(220, 30, 30);
-                case "ROUGE"     -> new Color(255, 80, 0);
-                case "ORANGE"    -> new Color(255, 180, 0);
-                case "FIN_ALERTE"-> new Color(0, 200, 100);
-                default          -> new Color(40, 160, 60);
-            };
-            g2.setColor(niveauColor);
-            g2.fillRoundRect(310, 14, 150, 42, 10, 10);
-            g2.setFont(new Font("Consolas", Font.BOLD, 14));
-            g2.setColor(Color.BLACK);
-            FontMetrics fm = g2.getFontMetrics();
-            g2.drawString(niveauIntervention, 310 + (150 - fm.stringWidth(niveauIntervention))/2, 41);
+            // Jauge danger global
+            int jaugeX = 400, jaugeW = 250, jaugeH = 18;
+            g2.setColor(new Color(40, 40, 60));
+            g2.fillRoundRect(jaugeX, 20, jaugeW, jaugeH, 6, 6);
+            int rempli = (int)(jaugeW * dangerGlobal / 100.0);
+            g2.setColor(couleurDanger(dangerGlobal));
+            if (rempli > 0) g2.fillRoundRect(jaugeX, 20, rempli, jaugeH, 6, 6);
+            g2.setColor(new Color(80, 80, 120));
+            g2.setStroke(new BasicStroke(1f));
+            g2.drawRoundRect(jaugeX, 20, jaugeW, jaugeH, 6, 6);
+            g2.setFont(new Font("Consolas", Font.BOLD, 11));
+            g2.setColor(Color.WHITE);
+            g2.drawString("Danger global : " + dangerGlobal + "/100", jaugeX, 17);
 
-            // Compteurs
-            int ox = 490;
-            dessinerCompteur(g2, ox,       "DANGER",    dangerGlobal + "/100", couleurDanger(dangerGlobal));
-            dessinerCompteur(g2, ox + 130, "POMPIERS",  pompiersDeployes + "/5", new Color(220, 80, 80));
-            dessinerCompteur(g2, ox + 260, "VÉHICULES", vehiculesDeployes + "/3", new Color(255, 140, 0));
-            dessinerCompteur(g2, ox + 390, "HÉLICOS",   helicosDeployes + "/2",  new Color(180, 0, 200));
-            dessinerCompteur(g2, ox + 520, "ALERTES",   String.valueOf(nbAlertes), new Color(100, 180, 255));
-            dessinerCompteur(g2, ox + 650, "ORDRES",    String.valueOf(nbOrdres),  new Color(148, 0, 211));
+            // Compteurs d'agents (affichage corrigé)
+            dessinerCompteur(g2, 700,  "🚒 Pompiers",  pompiersDeployes + "/5", new Color(220, 80, 80));
+            dessinerCompteur(g2, 830,  "🚛 Véhicules", vehiculesDeployes + "/3", new Color(255, 140, 0));
+            dessinerCompteur(g2, 960,  "🚁 Hélicos",   helicosDeployes + "/2",  new Color(180, 0, 200));
+            dessinerCompteur(g2, 1090, "📊 Alertes",   String.valueOf(nbAlertes), new Color(100, 180, 255));
+            dessinerCompteur(g2, 1220, "📋 Ordres",    String.valueOf(nbOrdres),  new Color(148, 0, 211));
 
             // Heure
-            g2.setFont(new Font("Consolas", Font.PLAIN, 12));
+            g2.setFont(new Font("Consolas", Font.PLAIN, 11));
             g2.setColor(new Color(130, 130, 180));
-            g2.drawString(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")), w - 72, 38);
+            g2.drawString(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")), w - 85, 35);
 
             g2.dispose();
         }
 
         private void dessinerCompteur(Graphics2D g2, int x, String label, String val, Color c) {
             g2.setColor(new Color(28, 28, 48));
-            g2.fillRoundRect(x, 8, 120, 54, 8, 8);
+            g2.fillRoundRect(x, 8, 115, 44, 8, 8);
             g2.setColor(c);
             g2.setStroke(new BasicStroke(1.2f));
-            g2.drawRoundRect(x, 8, 120, 54, 8, 8);
+            g2.drawRoundRect(x, 8, 115, 44, 8, 8);
             g2.setStroke(new BasicStroke(1f));
             g2.setFont(new Font("Consolas", Font.PLAIN, 10));
             g2.setColor(new Color(140, 140, 190));
             g2.drawString(label, x + 6, 22);
-            g2.setFont(new Font("Consolas", Font.BOLD, 20));
+            g2.setFont(new Font("Consolas", Font.BOLD, 18));
             g2.setColor(c);
-            g2.drawString(val, x + 6, 50);
+            g2.drawString(val, x + 6, 45);
         }
     }
+
 
     // ══════════════════════════════════════════════════════════════════════════
     // PANNEAU 3 : Météo (jauges)

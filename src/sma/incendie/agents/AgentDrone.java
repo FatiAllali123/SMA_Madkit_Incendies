@@ -48,6 +48,7 @@ public class AgentDrone extends Agent {
                     incendieVu = false;
                     actif      = false;
                 }
+                
             }
 
             if (incendieVu) {
